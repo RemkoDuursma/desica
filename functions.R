@@ -37,6 +37,15 @@ diurnal_sim <- function(PPFDmax=2000, RH=30,
 }
 
 
+make_simdfr <- function(..., ndays=40){
+  dm <- diurnal_sim(...)
+  simdfr <- vector("list", length=ndays)
+  for(i in 1:length(simdfr))simdfr[[i]] <- dm
+  simdfr <- do.call(rbind, simdfr)
+  simdfr$day <- rep(1:ndays, each=96)
+  
+return(simdfr)
+}
 
 
 desica_dt <- function(psist = -1,
@@ -58,6 +67,7 @@ desica_dt <- function(psist = -1,
                       p50 = -4,
                       s50 = 30,
                       gmin = 10, # mmol m-2 s-1
+                      fracrootresist=0.1,
                       ...
 ){
   
@@ -73,9 +83,10 @@ desica_dt <- function(psist = -1,
   
   ks <- ksoil_fun(psis, Ksat, psie, b)  # mmol m-2 s-1 MPa-1  # soil
   kp <- kpsat * fweibull(abs(psist), s50, abs(p50))           # plant
-  ktot <- 1 / (1/ks + 1/kp)                                   # total pathway
-  krst <- 1 / (1/ks + 1/(2*kp))                               # from soil to stem pool
-  kstl <- 2*kp                                                # from stem pool to leaf
+  ktot <- 1 / (1/ks + 1/kp)                                   # total pathway (not used)
+  
+  krst <- 1 / (1/ks + 1/(kp/fracrootresist))                               # from soil to stem pool
+  kstl <- kp/(1 - fracrootresist)                                           # from stem pool to leaf
   
   
   fsig_tuzet <- function(psil, psiv, sf){
@@ -110,46 +121,22 @@ desica_dt <- function(psist = -1,
 }
 
 
-
-# desica <- function(psil0=-2, psist0=-1, n=1000, timestep=900, 
-#                    psis=-1,
-#                    PPFD=1000,
-#                    ...){
-#   
-#   psil <- psist <- ks <- kp <- Eleaf <- rep(NA, n)
-#   psil[1] <- psil0
-#   psist[1] <- psist0
-#   
-#   if(length(psis) < n)psis <- rep(psis[1],n)
-#   if(length(PPFD) < n)PPFD <- rep(PPFD[1],n)
-#   
-#   for(i in 2:n){
-#     d <- desica_dt(psil=psil[i-1], psist=psist[i-1], psis=psis[i], PPFD=PPFD[i],...)
-#     psil[i] <- psil[i-1] + timestep*d["dpsil_dt"]
-#     psist[i] <- psist[i-1] + timestep*d["dpsist_dt"]
-#     kp[i] <- d["kp"]
-#     ks[i] <- d["ks"]
-#     Eleaf[i] <- d["Eleaf"]
-#   }
-#   
-#   return(data.frame(t=1:n, psil=psil, psist=psist, ks=ks, kp=kp, Eleaf=Eleaf))
-# }
-
-
 desicawb <- function(psil0=-2, 
                      psist0=-1, 
                      timestep=900, 
                      n=960,
                      thetasat=0.5, 
-                     sw0=0.4,
+                     sw0=0.5,
                      AL=20,
                      soilvolume=1,   # m3
                      b=6,
                      psie= -0.8*1E-03,
                      PPFD=1000,
+                     VPD=2,
+                     keepwet=FALSE,
                      ...){
   
-  psil <- psist <- psis <- ks <- kp <- Eleaf <- sw <- rep(NA, n)
+  psil <- psist <- psis <- ks <- kp <- Eleaf <- sw <- Jrs <- Jsl <- rep(NA, n)
   
 
   psil[1] <- psil0
@@ -159,25 +146,29 @@ desicawb <- function(psil0=-2,
   
   if(length(psis) < n)psis <- rep(psis[1],n)
   if(length(PPFD) < n)PPFD <- rep(PPFD[1],n)
+  if(length(VPD) < n)VPD <- rep(VPD[1],n)
   
   for(i in 2:n){
     
     d <- desica_dt(psil=psil[i-1], psist=psist[i-1], 
                    b=b, psie=psie,
-                   psis=psis[i-1], PPFD=PPFD[i],...)
+                   psis=psis[i-1], VPD=VPD[i], PPFD=PPFD[i],...)
     psil[i] <- psil[i-1] + timestep*d["dpsil_dt"]
     psist[i] <- psist[i-1] + timestep*d["dpsist_dt"]
     kp[i] <- d["kstl"]
     ks[i] <- d["krst"]
     Eleaf[i] <- d["Eleaf"]
+    Jrs[i] <- d["Jrs"]
+    Jsl[i] <- d["Jsl"]
     
     # Soil water decreases by amount Jrs (mol s-1)
     sw[i] <- sw[i-1] - timestep*1E-03*18*d["Jrs"] / (soilvolume * thetasat * 1E03)
+    if(keepwet)sw[i] <- sw[i-1]
     psis[i] <- psie*(sw[i]/thetasat)^-b
   }
   
   return(data.frame(t=1:n, psil=psil, psist=psist, 
-                    ks=ks, kp=kp, Eleaf=Eleaf,
+                    ks=ks, kp=kp, Eleaf=Eleaf, Jsl=Jsl, Jrs=Jrs,
                     sw=sw, psis=psis))
 }
 
