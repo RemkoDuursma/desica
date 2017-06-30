@@ -48,6 +48,30 @@ return(simdfr)
 }
 
 
+
+
+ksoil_fun <- function(psis, 
+                      Ksat, 
+                      psie, 
+                      b,
+                      LAI,
+                      Lv=50000,
+                      rroot=1E-06,
+                      soildepth=1
+                      ){
+  
+  Ks <- Ksat*(psie/psis)^(2 + 3/b)
+  Ks[psis == 0] <- Ksat
+  
+  rcyl <- 1/sqrt(pi*Lv)
+  Rl <- Lv * soildepth
+  
+(Rl/LAI)*2*pi*Ks/log(rcyl/rroot)
+}
+
+
+
+
 desica_dt <- function(psist = -1,
                       psil=-2,
                       psis = 0,
@@ -60,6 +84,9 @@ desica_dt <- function(psist = -1,
                       kpsat=3,
                       b=6,
                       Ca=400,
+                      Tair=25,
+                      LAI=2,
+                      soildepth=1,
                       Cs = 100 * 1000 / 18,  # mol (100 liters)
                       AL = 20,
                       VPD = 2,
@@ -70,18 +97,8 @@ desica_dt <- function(psist = -1,
                       fracrootresist=0.1,
                       ...
 ){
-  
-  # constant 8000 is made up :)  
-  ksoil_fun <- function(psis, Ksat, psie, b){
-    if(psis==0){
-      Ksat * 8000
-    } else {
-      8000 *  Ksat*(psie/psis)^(2 + 3/b)
-    }
-  }
-  #curve(ksoil_fun(200, -3*10^-3, x, 8), from=0, to=-3, ylim=c(0,2))
-  
-  ks <- ksoil_fun(psis, Ksat, psie, b)  # mmol m-2 s-1 MPa-1  # soil
+
+  ks <- ksoil_fun(psis, Ksat, psie, b, LAI, soildepth=soildepth)  # mmol m-2 s-1 MPa-1  # soil
   kp <- kpsat * fweibull(abs(psist), s50, abs(p50))           # plant
   ktot <- 1 / (1/ks + 1/kp)                                   # total pathway (not used)
   
@@ -94,7 +111,10 @@ desica_dt <- function(psist = -1,
   }
   
   # packageVersion("plantecophys") >= "1.2-6"
-  p <- Photosyn(VPD=VPD, gsmodel="BBdefine", BBmult=(g1/Ca)*fsig_tuzet(psil, psiv, sf), ...)
+  p <- Photosyn(VPD=VPD, gsmodel="BBdefine", 
+                BBmult=(g1/Ca)*fsig_tuzet(psil, psiv, sf), 
+                Tleaf=Tair,
+                ...)
   
   #p <- PhotosynWP(VPD=VPD, kp=kstl, psis=psist, psimin=psimin)
   Eleaf <- p$ELEAF + (VPD/101)*gmin  # mmol m-2 s-1
@@ -123,53 +143,65 @@ desica_dt <- function(psist = -1,
 
 desicawb <- function(psil0=-2, 
                      psist0=-1, 
-                     timestep=900, 
-                     n=960,
+                     timestep=900,   # seconds
                      thetasat=0.5, 
                      sw0=0.5,
                      AL=20,
-                     soilvolume=1,   # m3
+                     soildepth=1,
+                     groundarea=4,
                      b=6,
                      psie= -0.8*1E-03,
-                     PPFD=1000,
-                     VPD=2,
+                     met=NULL,   # 
                      keepwet=FALSE,
                      ...){
   
-  psil <- psist <- psis <- ks <- kp <- Eleaf <- sw <- Jrs <- Jsl <- rep(NA, n)
+  if(is.null(met)){
+    stop("Must provide met dataframe with VPD, Tair, PPFD, precip (optional)")
+  }
+  n <- nrow(met)
   
+  LAI <- AL / groundarea
+  soilvolume <- groundarea * soildepth
+  
+  psil <- psist <- psis <- sw <- rep(NA, n)
 
   psil[1] <- psil0
   psist[1] <- psist0
   sw[1] <- sw0
   psis[1] <- psie*(sw0/thetasat)^-b
   
-  if(length(psis) < n)psis <- rep(psis[1],n)
-  if(length(PPFD) < n)PPFD <- rep(PPFD[1],n)
-  if(length(VPD) < n)VPD <- rep(VPD[1],n)
+  d <- list()
   
   for(i in 2:n){
     
-    d <- desica_dt(psil=psil[i-1], psist=psist[i-1], 
-                   b=b, psie=psie,
-                   psis=psis[i-1], VPD=VPD[i], PPFD=PPFD[i],...)
-    psil[i] <- psil[i-1] + timestep*d["dpsil_dt"]
-    psist[i] <- psist[i-1] + timestep*d["dpsist_dt"]
-    kp[i] <- d["kstl"]
-    ks[i] <- d["krst"]
-    Eleaf[i] <- d["Eleaf"]
-    Jrs[i] <- d["Jrs"]
-    Jsl[i] <- d["Jsl"]
+    d[[i]] <- desica_dt(psil=psil[i-1], psist=psist[i-1], 
+                   b=b, psie=psie, LAI=LAI, soildepth=soildepth,
+                   psis=psis[i-1], 
+                   VPD=met$VPD[i], PPFD=met$PPFD[i], Tair=met$Tair[i], 
+                   ...)
     
-    # Soil water decreases by amount Jrs (mol s-1)
-    sw[i] <- sw[i-1] - timestep*1E-03*18*d["Jrs"] / (soilvolume * thetasat * 1E03)
+    # Simple difference equations.
+    psil[i] <- psil[i-1] + timestep*d[[i]]["dpsil_dt"]
+    psist[i] <- psist[i-1] + timestep*d[[i]]["dpsist_dt"]
+    
+    # Soil water increase: precip - transpiration (units kg total timestep-1)
+    water_in <- groundarea * met$precip[i] - timestep*1E-03*18*d[[i]]["Jrs"]
+    sw[i] <- pmin(1, sw[i-1] + water_in / (soilvolume * thetasat * 1E03))  # sw in units m3 m-3
+    
+    # for debugging
     if(keepwet)sw[i] <- sw[i-1]
+    
+    # update soil water potential
     psis[i] <- psie*(sw[i]/thetasat)^-b
   }
   
-  return(data.frame(t=1:n, psil=psil, psist=psist, 
-                    ks=ks, kp=kp, Eleaf=Eleaf, Jsl=Jsl, Jrs=Jrs,
-                    sw=sw, psis=psis))
+  
+  d <- as.data.frame(do.call(rbind,d))
+  d <- cbind(d, met[-1,], data.frame(psis=psis, psil=psil, psist=psist)[-1,])
+  
+  d$t <- 1:nrow(d)
+  
+return(d)
 }
 
 

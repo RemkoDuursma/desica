@@ -9,19 +9,20 @@ source("functions.R")
 
 
 
-simdfr <- make_simdfr(Tmin=10, RH=30)
+simdfr <- make_simdfr(Tmin=10, RH=30, ndays=60)
+simdfr$precip <- 0
 
 d <- desicawb(psil0=0, psist0=0, psiv=-2.5, sf=1.5, 
-            n=nrow(simdfr),
             kpsat=1.5,
             Cl=100,
             b=6,
             Cs=8000,
             gmin=10,
-            VPD=simdfr$VPD,
-            
-            PPFD=simdfr$PPFD,  timestep=15*60)
-d <- cbind(d, simdfr)
+            AL=30,
+            met=simdfr,
+            fracrootresist=0.01,
+            timestep=15*60)
+
 
 
 with(d, {
