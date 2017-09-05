@@ -74,13 +74,13 @@ ksoil_fun <- function(psis,
 
 desica_dt <- function(psist = -1,
                       psil=-2,
-                      psis = 0,
+                      psirs = 0,
                       psie= -0.8*1E-03,
                       psimin=-2.2,  # not used
                       psiv=-2,
                       sf=8,
                       g1=5,
-                      Ksat=200,
+                      
                       kpsat=3,
                       b=6,
                       Ca=400,
@@ -98,13 +98,13 @@ desica_dt <- function(psist = -1,
                       ...
 ){
 
-  ks <- ksoil_fun(psis, Ksat, psie, b, LAI, soildepth=soildepth)  # mmol m-2 s-1 MPa-1  # soil
-  kp <- kpsat * fweibull(abs(psist), s50, abs(p50))           # plant
-  ktot <- 1 / (1/ks + 1/kp)                                   # total pathway (not used)
   
-  krst <- 1 / (1/ks + 1/(kp/fracrootresist))                               # from soil to stem pool
-  kstl <- kp/(1 - fracrootresist)                                           # from stem pool to leaf
-  
+  kp <- kpsat * fweibull(abs(psist), s50, abs(p50))             # plant
+  # ktot <- 1 / (1/ks + 1/kp)                                   # total pathway (not used)
+  # 
+  # krst <- 1 / (1/ks + 1/(kp/fracrootresist))                               # from soil to stem pool
+  # kstl <- kp/(1 - fracrootresist)                                           # from stem pool to leaf
+  # 
   
   fsig_tuzet <- function(psil, psiv, sf){
     (1 + exp(sf*psiv)) / (1 + exp(sf*(psiv - psil)))
@@ -121,8 +121,8 @@ desica_dt <- function(psist = -1,
   
   Et <- 1E-03 * AL * Eleaf  # mol s-1
   
-  Jrs <- 1E-03 * AL * krst * (psis - psist) # mol s-1
-  Jsl <- 1E-03 * AL * kstl * (psist - psil) # mol s-1
+  Jrs <- 1E-03 * AL * 2 * kp * (psirs - psist) # mol s-1
+  Jsl <- 1E-03 * AL * 2 * kp * (psist - psil) # mol s-1
   
   dpsist_dt <- (Jrs - Jsl)/Cs
   dpsil_dt <- (Jsl - Et)/Cl
@@ -151,6 +151,7 @@ desicawb <- function(psil0=-2,
                      groundarea=4,
                      b=6,
                      psie= -0.8*1E-03,
+                     Ksat=200,
                      met=NULL,   # 
                      keepwet=FALSE,
                      ...){
@@ -163,12 +164,15 @@ desicawb <- function(psil0=-2,
   LAI <- AL / groundarea
   soilvolume <- groundarea * soildepth
   
-  psil <- psist <- psis <- sw <- rep(NA, n)
+  psil <- psist <- psis <- sw <- ks <- psirs <- rep(NA, n)
 
   psil[1] <- psil0
   psist[1] <- psist0
   sw[1] <- sw0
   psis[1] <- psie*(sw0/thetasat)^-b
+  
+  
+  psirs[1] <- psis[1]
   
   d <- list()
   
@@ -176,7 +180,7 @@ desicawb <- function(psil0=-2,
     
     d[[i]] <- desica_dt(psil=psil[i-1], psist=psist[i-1], 
                    b=b, psie=psie, LAI=LAI, soildepth=soildepth,
-                   psis=psis[i-1], 
+                   psirs=psirs[i-1], 
                    VPD=met$VPD[i], PPFD=met$PPFD[i], Tair=met$Tair[i], 
                    ...)
     
@@ -193,11 +197,17 @@ desicawb <- function(psil0=-2,
     
     # update soil water potential
     psis[i] <- psie*(sw[i]/thetasat)^-b
+    
+    ks[i] <- ksoil_fun(psis[i], Ksat, psie, b, LAI, soildepth=soildepth)
+    
+    # root surface water potential
+    psirs[i] <- psis[i] - d[[i]]["Jrs"]*1E03 / ks[i]
   }
   
   
   d <- as.data.frame(do.call(rbind,d))
-  d <- cbind(d, met[-1,], data.frame(psis=psis, psil=psil, psist=psist)[-1,])
+  d <- cbind(d, met[-1,], 
+             data.frame(psis=psis, psirs=psirs, ks=ks, psil=psil, psist=psist)[-1,])
   
   d$t <- 1:nrow(d)
   

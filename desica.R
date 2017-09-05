@@ -9,7 +9,7 @@ source("functions.R")
 
 
 
-simdfr <- make_simdfr(Tmin=10, RH=30, ndays=60)
+simdfr <- make_simdfr(Tmin=10, RH=30, ndays=50)
 simdfr$precip <- 0
 
 d <- desicawb(psil0=0, psist0=0, psiv=-2.5, sf=1.5, 
