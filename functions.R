@@ -72,89 +72,51 @@ ksoil_fun <- function(psis,
 
 
 
-desica_dt <- function(psist = -1,
-                      psil=-2,
-                      psirs = 0,
-                      psie= -0.8*1E-03,
-                      psimin=-2.2,  # not used
-                      psiv=-2,
-                      sf=8,
-                      g1=5,
-                      
-                      kpsat=3,
-                      b=6,
-                      Ca=400,
-                      Tair=25,
-                      LAI=2,
-                      soildepth=1,
-                      Cs = 100 * 1000 / 18,  # mol (100 liters)
-                      AL = 20,
-                      VPD = 2,
-                      Cl = 50 * 1000 / 18,  # mol (50 liters)
-                      p50 = -4,
-                      s50 = 30,
-                      gmin = 10, # mmol m-2 s-1
-                      fracrootresist=0.1,
-                      ...
-){
-
-  
-  kp <- kpsat * fweibull(abs(psist), s50, abs(p50))             # plant
-  # ktot <- 1 / (1/ks + 1/kp)                                   # total pathway (not used)
-  # 
-  # krst <- 1 / (1/ks + 1/(kp/fracrootresist))                               # from soil to stem pool
-  # kstl <- kp/(1 - fracrootresist)                                           # from stem pool to leaf
-  # 
+desica <- function(met=NULL,   # 
+                   psiv=-2,
+                   sf=8,
+                   g1=5,
+                   
+                   Ca=400,
+                   
+                   Cs = 100 * 1000 / 18,  # mol (100 liters)
+                   
+                   Cl = 50 * 1000 / 18,  # mol (50 liters)
+                   
+                   kpsat=3,
+                   p50 = -4,
+                   s50 = 30,
+                   gmin = 10, # mmol m-2 s-1
+                   
+                   psil0=-2, 
+                   psist0=-1, 
+                   timestep=1*60,   # seconds
+                   thetasat=0.5, 
+                   sw0=0.5,
+                   AL=1,
+                   soildepth=1,
+                   groundarea=1,
+                   b=6,
+                   psie= -0.8*1E-03,
+                   Ksat=200,
+                   
+                   keepwet=FALSE){
   
   fsig_tuzet <- function(psil, psiv, sf){
     (1 + exp(sf*psiv)) / (1 + exp(sf*(psiv - psil)))
   }
   
-  # packageVersion("plantecophys") >= "1.2-6"
-  p <- Photosyn(VPD=VPD, gsmodel="BBdefine", 
-                BBmult=(g1/Ca)*fsig_tuzet(psil, psiv, sf), 
-                Tleaf=Tair,
-                ...)
-  
-  #p <- PhotosynWP(VPD=VPD, kp=kstl, psis=psist, psimin=psimin)
-  Eleaf <- p$ELEAF + (VPD/101)*gmin  # mmol m-2 s-1
-  
-  Et <- 1E-03 * AL * Eleaf  # mol s-1
-  
-  Jrs <- 1E-03 * AL * 2 * kp * (psirs - psist) # mol s-1
-  Jsl <- 1E-03 * AL * 2 * kp * (psist - psil) # mol s-1
-  
-  dpsist_dt <- (Jrs - Jsl)/Cs
-  dpsil_dt <- (Jsl - Et)/Cl
-  
-  return(c(dpsist_dt=dpsist_dt, 
-           dpsil_dt=dpsil_dt,
-           Eleaf=Eleaf,
-           kp=kp,
-           ks=ks,
-           krst=krst,
-           kstl=kstl,
-           Jsl=Jsl,
-           Jrs=Jrs
-           
-  ))
-}
-
-
-desicawb <- function(psil0=-2, 
-                     psist0=-1, 
-                     timestep=900,   # seconds
-                     thetasat=0.5, 
-                     sw0=0.5,
-                     AL=20,
-                     soildepth=1,
-                     groundarea=4,
-                     b=6,
-                     psie= -0.8*1E-03,
-                     Ksat=200,
-                     met=NULL,   # 
-                     keepwet=FALSE,
-                     ...){
+  fsig_hydr <- function(P, SX, PX, X=50){
+    
+    P <- abs(P)
+    PX <- abs(PX)
+    X <- X[1] # when fitting; vector may be passed but X cannot actually vary.
+    V <- (X-100)*log(1-X/100)
+    p <- (P/PX)^((PX*SX)/V)
+    relk <- (1-X/100)^p
+    
+    return(relk)
+  }
   
   if(is.null(met)){
     stop("Must provide met dataframe with VPD, Tair, PPFD, precip (optional)")
@@ -164,13 +126,13 @@ desicawb <- function(psil0=-2,
   LAI <- AL / groundarea
   soilvolume <- groundarea * soildepth
   
-  psil <- psist <- psis <- sw <- ks <- psirs <- rep(NA, n)
-
+  Eleaf <- psil <- psist <- psis <- sw <- ks <- kp <- psirs <- Jsl <- Jrs <- rep(NA, n)
+  
   psil[1] <- psil0
   psist[1] <- psist0
   sw[1] <- sw0
   psis[1] <- psie*(sw0/thetasat)^-b
-  
+  Eleaf[1] <- 0
   
   psirs[1] <- psis[1]
   
@@ -178,40 +140,65 @@ desicawb <- function(psil0=-2,
   
   for(i in 2:n){
     
-    d[[i]] <- desica_dt(psil=psil[i-1], psist=psist[i-1], 
-                   b=b, psie=psie, LAI=LAI, soildepth=soildepth,
-                   psirs=psirs[i-1], 
-                   VPD=met$VPD[i], PPFD=met$PPFD[i], Tair=met$Tair[i], 
-                   ...)
+    # Plant hydraulic conductance
+    # Note how it depends on previous timestep stem water potential.
+    kp[i] <- kpsat * fsig_hydr(psist[i-1], s50, p50)    
     
-    # Simple difference equations.
-    psil[i] <- psil[i-1] + timestep*d[[i]]["dpsil_dt"]
-    psist[i] <- psist[i-1] + timestep*d[[i]]["dpsist_dt"]
+    # packageVersion("plantecophys") >= "1.2-6"
+    p <- Photosyn(VPD=met$VPD[i], 
+                  gsmodel="BBdefine", 
+                  BBmult=(g1/Ca)*fsig_tuzet(psil[i-1], psiv, sf), 
+                  Tleaf=met$Tair[i],
+                  PPFD=met$PPFD[i],
+                  Ca=Ca)
+    
+    # Leaf transpiration (mol m-2 s-1)
+    Eleaf[i] <- p$ELEAF + (met$VPD[i]/101)*gmin
+    
+    # Xu method.
+    # Can write the dynamic equation as: dPsil_dt = b + a*psil
+    # Then it follows (Xu et al. 2016, Appendix, and Code).
+    bp <- (AL * 2 * kp[i]*psist[i-1] - AL*Eleaf[i])/Cl
+    ap <- -(AL * 2 * kp[i] / Cl)
+    psil[i] <- ((ap*psil[i-1] + bp)*exp(ap*timestep) - bp)/ap
+    
+    # Flux from stem to leaf= change in leaf storage, plus transpiration
+    Jsl[i] <- (psil[i] - psil[i-1]) * Cl / timestep + AL*Eleaf[i]
+    
+    # Update stem water potential
+    # Also from Xu et al. 2016.
+    bp <- (AL * 2 * kp[i] * psis[i-1] - Jsl[i])/Cs
+    ap <- -(AL * 2 * kp[i] / Cs)
+    psist[i] <- ((ap*psist[i-1] + bp)*exp(ap*timestep) - bp)/ap
+    
+    # flux from soil to stem = change in stem storage, plus Jrl
+    Jrs[i] <- (psist[i] - psist[i-1])*Cs/timestep + Jsl[i]
     
     # Soil water increase: precip - transpiration (units kg total timestep-1)
-    water_in <- groundarea * met$precip[i] - timestep*1E-03*18*d[[i]]["Jrs"]
+    # (Note: transpiration is part of Jrs).
+    water_in <- groundarea * met$precip[i] - timestep*1E-06*18*Jrs[i]
     sw[i] <- pmin(1, sw[i-1] + water_in / (soilvolume * thetasat * 1E03))  # sw in units m3 m-3
     
-    # for debugging
+    # for debugging / comparison.
     if(keepwet)sw[i] <- sw[i-1]
     
-    # update soil water potential
+    # Update soil water potential and soil-to-root hydraulic conductance
     psis[i] <- psie*(sw[i]/thetasat)^-b
-    
     ks[i] <- ksoil_fun(psis[i], Ksat, psie, b, LAI, soildepth=soildepth)
     
-    # root surface water potential
-    psirs[i] <- psis[i] - d[[i]]["Jrs"]*1E03 / ks[i]
+    # root surface water potential (not actually used?)
+    psirs[i] <- psis[i] - Jrs[i]*1E03 / ks[i]
+    
   }
   
-  
-  d <- as.data.frame(do.call(rbind,d))
-  d <- cbind(d, met[-1,], 
-             data.frame(psis=psis, psirs=psirs, ks=ks, psil=psil, psist=psist)[-1,])
+  d <- cbind(met[-1,], 
+             data.frame(psis=psis, sw=sw, Eleaf=Eleaf, 
+                        psirs=psirs, ks=ks, psil=psil, kp=kp,
+                        psist=psist, Jsl=Jsl, Jrs=Jrs)[-1,])
   
   d$t <- 1:nrow(d)
   
-return(d)
+  return(d)
 }
 
 
