@@ -43,6 +43,7 @@ make_simdfr <- function(..., ndays=40){
   for(i in 1:length(simdfr))simdfr[[i]] <- dm
   simdfr <- do.call(rbind, simdfr)
   simdfr$day <- rep(1:ndays, each=96)
+  simdfr$precip <- 0
   
 return(simdfr)
 }
@@ -70,9 +71,23 @@ ksoil_fun <- function(psis,
 }
 
 
+fsig_tuzet <- function(psil, psiv, sf){
+  (1 + exp(sf*psiv)) / (1 + exp(sf*(psiv - psil)))
+}
 
+fsig_hydr <- function(P, SX, PX, X=50){
+  
+  P <- abs(P)
+  PX <- abs(PX)
+  X <- X[1] # when fitting; vector may be passed but X cannot actually vary.
+  V <- (X-100)*log(1-X/100)
+  p <- (P/PX)^((PX*SX)/V)
+  relk <- (1-X/100)^p
+  
+  return(relk)
+}
 
-desica <- function(met=NULL,   # 
+desica <- function(met=NULL,
                    psiv=-2,
                    sf=8,
                    g1=5,
@@ -100,24 +115,13 @@ desica <- function(met=NULL,   #
                    psie= -0.8*1E-03,
                    Ksat=200,
                    
-                   keepwet=FALSE){
+                   keepwet=FALSE,
+                   stopsimdead=FALSE,
+                   plcdead=50
+                   
+                   ){
   
-  fsig_tuzet <- function(psil, psiv, sf){
-    (1 + exp(sf*psiv)) / (1 + exp(sf*(psiv - psil)))
-  }
-  
-  fsig_hydr <- function(P, SX, PX, X=50){
-    
-    P <- abs(P)
-    PX <- abs(PX)
-    X <- X[1] # when fitting; vector may be passed but X cannot actually vary.
-    V <- (X-100)*log(1-X/100)
-    p <- (P/PX)^((PX*SX)/V)
-    relk <- (1-X/100)^p
-    
-    return(relk)
-  }
-  
+
   if(is.null(met)){
     stop("Must provide met dataframe with VPD, Tair, PPFD, precip (optional)")
   }
@@ -189,6 +193,10 @@ desica <- function(met=NULL,   #
     # root surface water potential (not actually used?)
     psirs[i] <- psis[i] - Jrs[i]*1E03 / ks[i]
     
+    if(stopsimdead){
+      plc <- 100*(1 - kp[i]/kpsat)
+      if(plc > plcdead)break
+    }
   }
   
   d <- cbind(met[-1,], 
@@ -197,6 +205,9 @@ desica <- function(met=NULL,   #
                         psist=psist, Jsl=Jsl, Jrs=Jrs)[-1,])
   
   d$t <- 1:nrow(d)
+  
+  # when stopsimdead, last many rows are NA
+  d <- d[!is.na(d$psis),]
   
   return(d)
 }

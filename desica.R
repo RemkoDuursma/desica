@@ -6,10 +6,7 @@ source("functions.R")
 
 
 
-simdfr <- 
-simdfr$precip <- 0
-
-d <- desica(met=make_simdfr(Tmin=10, RH=30, ndays=50),
+d <- desica(met=make_simdfr(Tmin=10, RH=30, ndays=100),
             psil0=-1, psist0=-0.5, psiv=-2.5, sf=1.5, 
             sw0=0.2,
               kpsat=1.5,
@@ -18,9 +15,10 @@ d <- desica(met=make_simdfr(Tmin=10, RH=30, ndays=50),
               Cs=8000,
               gmin=10,
               soildepth=1,
-              AL=1,
+              AL=10,
               p50=-3,
-              timestep=1*60)
+              timestep=1*60,
+              stopsimdead=T)
 
 
 with(d, {
