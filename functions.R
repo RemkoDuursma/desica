@@ -93,9 +93,7 @@ desica <- function(met=NULL,
                    g1=5,
                    
                    Ca=400,
-                   
                    Cs = 100 * 1000 / 18,  # mol (100 liters)
-                   
                    Cl = 50 * 1000 / 18,  # mol (50 liters)
                    
                    kpsat=3,
@@ -118,7 +116,6 @@ desica <- function(met=NULL,
                    keepwet=FALSE,
                    stopsimdead=FALSE,
                    plcdead=50
-                   
                    ){
   
 
@@ -131,12 +128,13 @@ desica <- function(met=NULL,
   soilvolume <- groundarea * soildepth
   
   Eleaf <- psil <- psist <- psis <- sw <- ks <- kp <- psirs <- Jsl <- Jrs <- rep(NA, n)
-  
+  krst <- kstl <- rep(NA,n)
   psil[1] <- psil0
   psist[1] <- psist0
   sw[1] <- sw0
   psis[1] <- psie*(sw0/thetasat)^-b
   Eleaf[1] <- 0
+  ks[1] <- ksoil_fun(psis[1], Ksat, psie, b, LAI, soildepth=soildepth)
   
   psirs[1] <- psis[1]
   
@@ -147,6 +145,12 @@ desica <- function(met=NULL,
     # Plant hydraulic conductance
     # Note how it depends on previous timestep stem water potential.
     kp[i] <- kpsat * fsig_hydr(psist[i-1], s50, p50)    
+    
+    # from soil to stem pool
+    krst[i] <- 1 / (1/ks[i-1] + 1/(2*kp[i]))
+    
+    # from stem pool to leaf
+    kstl[i] <- 2*kp[i]
     
     # packageVersion("plantecophys") >= "1.2-6"
     p <- Photosyn(VPD=met$VPD[i], 
@@ -162,8 +166,8 @@ desica <- function(met=NULL,
     # Xu method.
     # Can write the dynamic equation as: dPsil_dt = b + a*psil
     # Then it follows (Xu et al. 2016, Appendix, and Code).
-    bp <- (AL * 2 * kp[i]*psist[i-1] - AL*Eleaf[i])/Cl
-    ap <- -(AL * 2 * kp[i] / Cl)
+    bp <- (AL * 2 * kstl[i]*psist[i-1] - AL*Eleaf[i])/Cl
+    ap <- -(AL * 2 * kstl[i] / Cl)
     psil[i] <- ((ap*psil[i-1] + bp)*exp(ap*timestep) - bp)/ap
     
     # Flux from stem to leaf= change in leaf storage, plus transpiration
@@ -171,8 +175,8 @@ desica <- function(met=NULL,
     
     # Update stem water potential
     # Also from Xu et al. 2016.
-    bp <- (AL * 2 * kp[i] * psis[i-1] - Jsl[i])/Cs
-    ap <- -(AL * 2 * kp[i] / Cs)
+    bp <- (AL * 2 * krst[i] * psis[i-1] - Jsl[i])/Cs
+    ap <- -(AL * 2 * krst[i] / Cs)
     psist[i] <- ((ap*psist[i-1] + bp)*exp(ap*timestep) - bp)/ap
     
     # flux from soil to stem = change in stem storage, plus Jrl

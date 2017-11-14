@@ -8,7 +8,7 @@
 
 pacman::p_load(smatr, dplyr, plover)
 
-rod <- read.csv("roderick1999_clean.csv") %>%
+rod <- read.csv("data/roderick1999_clean.csv") %>%
   mutate(LMA = 10^6 * md / As,
          LWA = 10^6 * ml /As)
 

@@ -2,3 +2,5 @@
 *.Rproj
 *.pdf
 .Rproj.user
+*.rds
+*.xlsx
