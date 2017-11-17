@@ -3,38 +3,36 @@ desica2 <- function(met=NULL,
                     runs_per_timestep = 1,
                     
                     Ca = 400,  
-                   sf=8,
-                   g1=5,
+                    sf=8,
+                    g1=5,
                    
-                   Cs = 30000,
-                   Cl = 3000,
+                    Cs = 100000,
+                    Cl = 10000,
                    
-                   kpsat=3,
-                   p50 = -4,
-                   psiv=-3,
-                   s50 = 30,
-                   gmin = 10, # mmol m-2 s-1
+                    kpsat=3,
+                    p50 = -4,
+                    psiv=-2,
+                    s50 = 30,
+                    gmin = 10, # mmol m-2 s-1
                    
-                   psil0=-2, 
-                   psist0=-1, 
+                    psil0=-1, 
+                    psist0=-0.5, 
                    
-                   thetasat=0.5, 
-                   sw0=0.4,
-                   AL=2.5,
-                   soildepth=1,
-                   groundarea=1,
-                   b=6,
-                   psie= -0.8*1E-03,
-                   Ksat=20,
-                   Lv=10000,
+                    thetasat=0.5, 
+                    sw0=0.4,
+                    AL=2.5,
+                    soildepth=1,
+                    groundarea=1,
+                    b=6,
+                    psie= -0.8*1E-03,
+                    Ksat=20,
+                    Lv=10000,
                    
-                   keepwet=FALSE,
-                   stopsimdead=TRUE,
-                   plcdead=88,
-                   mf=NA,
-                   LMA=NA
-){
-  
+                    keepwet=FALSE,
+                    stopsimdead=TRUE,
+                    plcdead=88,
+                    mf=NA,
+                    LMA=NA){
   
   if(is.null(met)){
     stop("Must provide met dataframe with VPD, Tair, PPFD, precip (optional)")

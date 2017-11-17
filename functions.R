@@ -93,30 +93,30 @@ desica <- function(met=NULL,
                    g1=5,
                    
                    Ca=400,
-                   Cs = 100 * 1000 / 18,  # mol (100 liters)
-                   Cl = 50 * 1000 / 18,  # mol (50 liters)
+                   Cs = 100000,
+                   Cl = 10000,
                    
                    kpsat=3,
                    p50 = -4,
                    s50 = 30,
                    gmin = 10, # mmol m-2 s-1
                    
-                   psil0=-2, 
-                   psist0=-1, 
+                   psil0=-1, 
+                   psist0=-0.5, 
                    timestepmin=1,   # seconds
                    thetasat=0.5, 
-                   sw0=0.5,
-                   AL=1,
+                   sw0=0.4,
+                   AL=2.5,
                    soildepth=1,
                    groundarea=1,
                    b=6,
                    psie= -0.8*1E-03,
-                   Ksat=200,
+                   Ksat=20,
                    Lv=10000,
                    
                    keepwet=FALSE,
-                   stopsimdead=FALSE,
-                   plcdead=50,
+                   stopsimdead=TRUE,
+                   plcdead=88,
                    mf=NA,
                    LMA=NA
                    ){

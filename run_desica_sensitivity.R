@@ -22,8 +22,7 @@ dead_sim <- function(met, p50, psiv, gmin, capac, return=c("summary","simulation
               
               gmin=gmin,
               soildepth=0.8,
-              LMA = 100, # g m-2
-              AL= 3, #mf / (LMA / 1000),  # m2
+              AL= 3, 
               
               Cl=0.1*capac,   # mmol MPa-1
               Cs=0.9*capac,  
@@ -135,9 +134,10 @@ plot_desica(r1, -3.75)
 
 
 
+met <- make_simdfr(Tmin=10, RH=30, ndays=200)
 
+d1 <- desica(met)
+d2 <- desica2(met)
 
-
-
-
-
+plot_desica(d1)
+plot_desica(d2)
