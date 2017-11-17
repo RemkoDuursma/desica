@@ -67,8 +67,7 @@ with(x, lines(t, Eleaf, col="red"))
   curve(fsig_tuzet(-x, psiv=psiv, sf=sf), add=TRUE, col="blue2", lwd=2)
   curve(1-fsig_hydr(x, SX=s50, PX=p50), add=TRUE, col="red2", lwd=2)
   
-  martin <- readxl::read_excel("data/DataBase.xlsx", sheet=4)
-  names(martin)[6] <- "Pgs50"
+
   with(martin, plot(P50, Pgs50, pch=19, col=as.factor(Group),
                     xlim=c(-15,0), ylim=c(-5,0)))  
   abline(0,1)

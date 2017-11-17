@@ -1,23 +1,112 @@
-desica2 <- function(met=NULL,
+
+diurnal_sim <- function(PPFDmax=2000, RH=30, 
+                        Tmax=30, Tmin=15,
+                        daylength=12, 
+                        sunrise=8, 
+                        timestep=15, 
+                        lag=0.5){
+  
+  # PPFD
+  crv <- function(relt, ymax)(ymax/2)*(1+sin((2*pi*relt)+1.5*pi))
+  
+  r <- seq(0, 24*60 - timestep, by=timestep)
+  p <- rep(0, length(r))
+  ii <- which(r >= (sunrise*60) & r < (sunrise*60 + daylength*60))
+  p[ii] <- crv( (r[ii] - sunrise*60)/(daylength*60), PPFDmax)
+  
+  
+  # during daylight
+  partondiurnal <- function(timeh, Tmax,Tmin,daylen, lag){
+    (Tmax-Tmin)*sin((pi*timeh)/(daylen+2*lag)) + Tmin
+  }
+  
+  ta <- rep(NA, length(r))
+  td <- partondiurnal(seq(0, daylength - timestep/60, by=timestep/60), Tmax, Tmin, daylength,lag)
+  ta[ii] <- td
+  
+  nnight <- length(r)-length(td)
+  tdec <- ta[max(ii)] + (Tmin - ta[max(ii)])* 1:nnight / nnight
+  after <- (max(ii)+1):length(r)
+  ta[after] <- tdec[1:length(after)]
+  before <- 1:(min(ii)-1)
+  ta[before] <- tdec[(length(after)+1):length(tdec)]
+  
+  vpd <- RHtoVPD(RH, ta)
+  
+  return(data.frame(PPFD=p, Tair=ta, VPD=vpd))
+}
+
+
+make_simdfr <- function(..., ndays=40){
+  dm <- diurnal_sim(...)
+  simdfr <- vector("list", length=ndays)
+  for(i in 1:length(simdfr))simdfr[[i]] <- dm
+  simdfr <- do.call(rbind, simdfr)
+  simdfr$day <- rep(1:ndays, each=96)
+  simdfr$precip <- 0
+  
+return(simdfr)
+}
+
+
+
+
+ksoil_fun <- function(psis, 
+                      Ksat, 
+                      psie, 
+                      b,
+                      LAI,
+                      Lv=50000,
+                      rroot=1E-06,
+                      soildepth=1
+                      ){
+  
+  Ks <- Ksat*(psie/psis)^(2 + 3/b)
+  Ks[psis == 0] <- Ksat
+  
+  rcyl <- 1/sqrt(pi*Lv)
+  Rl <- Lv * soildepth
+  
+(Rl/LAI)*2*pi*Ks/log(rcyl/rroot)
+}
+
+
+fsig_tuzet <- function(psil, psiv, sf){
+  (1 + exp(sf*psiv)) / (1 + exp(sf*(psiv - psil)))
+}
+
+fsig_hydr <- function(P, SX, PX, X=50){
+  
+  P <- abs(P)
+  PX <- abs(PX)
+  X <- X[1] # when fitting; vector may be passed but X cannot actually vary.
+  V <- (X-100)*log(1-X/100)
+  p <- (P/PX)^((PX*SX)/V)
+  relk <- (1-X/100)^p
+  
+  return(relk)
+}
+
+desica <- function(met=NULL,
                     met_timestep = 15,
                     runs_per_timestep = 1,
                     
                     Ca = 400,  
                     sf=8,
                     g1=5,
-                   
+                    
                     Cs = 100000,
                     Cl = 10000,
-                   
+                    
                     kpsat=3,
                     p50 = -4,
                     psiv=-2,
                     s50 = 30,
                     gmin = 10, # mmol m-2 s-1
-                   
+                    
                     psil0=-1, 
                     psist0=-0.5, 
-                   
+                    
                     thetasat=0.5, 
                     sw0=0.4,
                     AL=2.5,
@@ -27,7 +116,7 @@ desica2 <- function(met=NULL,
                     psie= -0.8*1E-03,
                     Ksat=20,
                     Lv=10000,
-                   
+                    
                     keepwet=FALSE,
                     stopsimdead=TRUE,
                     plcdead=88,
@@ -47,7 +136,7 @@ desica2 <- function(met=NULL,
   # Initial conditions
   na <- rep(NA, nrow(met))
   out <- data.frame(Eleaf=na,psil=na,psist=na,psis=na,sw=na,
-                       ks=na,kp=na,Jsl=na,Jrs=na,krst=na,kstl=na)
+                    ks=na,kp=na,Jsl=na,Jrs=na,krst=na,kstl=na)
   
   out$psil[1] <- psil0
   out$psist[1] <- psist0
@@ -58,7 +147,7 @@ desica2 <- function(met=NULL,
   # soil-to-root conductance
   out$ks[1] <- ksoil_fun(out$psis[1], Ksat, psie, b, 
                          LAI, soildepth=soildepth, Lv=Lv)
-
+  
   pars <- list(timestep_sec=timestep_sec,psiv=psiv,sf=sf,g1=g1,Ca=Ca,Cs=Cs,
                Cl=Cl,kpsat=kpsat,p50=p50,s50=s50,gmin=gmin,
                thetasat =thetasat,AL=AL,soildepth=soildepth,
@@ -156,4 +245,42 @@ calc_timestep <- function(met, i, out, pars){
   
   return(out)
 }
+
+
+
+plot_desica <- function(d, p50=-3){
+  
+  par(mfrow=c(2,2), mar=c(4,4,1,1))
+  
+  with(d, {
+    plot(t, psis, type='l', ylim=c(-8,0))
+    lines(t, psil, col="forestgreen")
+    lines(t, psist, col="blue2")
+    abline(h=p50)
+  })
+  
+  plot(d$sw, type='l')
+  
+  with(d, {
+    plot(t, Jsl, type='l')
+    lines(t, Jrs, col="blue2")
+  })
+  
+  plot(d$plc, type='l')
+}
+
+
+
+summarize_desica <- function(d){
+  
+  phase2 <- subset(d, ks < 0.05*max(kp))
+  simtot <- nrow(d) / (4*24)
+  sim2 <- nrow(phase2) / (4*24)
+  sim1 <- simtot - sim2
+  
+  return(c(phase1=sim1, phase2=sim2, p50=p50, psiv=psiv, gmin=gmin, 
+           capac=capac, plcfinal=d$plc[nrow(d)]))
+  
+}
+
 
