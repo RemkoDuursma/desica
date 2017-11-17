@@ -1,56 +1,56 @@
   
 library(plantecophys)
-library(fitplc) # not needed?
+#library(fitplc) # not needed?
 
 source("functions.R")
 
 
+# stem volume
 
-d <- desica(met=make_simdfr(Tmin=10, RH=30, ndays=100),
+#1000*11.45*mf^1.33 * (1/500) * 10^3 * 0.5 * 10^3 / 18
+
+d <- desica(met=make_simdfr(Tmin=10, RH=30, ndays=200),
             psil0=-1, 
             psist0=-0.5, 
             p50=-5,
             psiv=-2.5, 
             sf=5, 
-            sw0=0.2,
+            sw0=0.4,
             kpsat=1.5,
-            Cl=500,
+            
             b=6,
-            Cs=8000,
+            
             gmin=10,
             soildepth=1,
-            AL=10,
+            mf = 1,   # kg
+            LMA = 100, # g m-2
+            AL= mf / (LMA / 1000),  # m2
+            
+            Cl=4000,   # mmol MPa-1
+            Cs=40000,  
             
             plcdead=88,
             timestep=1*60,
-            stopsimdead=F)
+            stopsimdead=T)
 
 
-# actual water uptake by roots has to be equal to this? (at steady state at least...)
-# d$Jrs_a <- with(d, ks * (psis - psist))
+
+dead_sim <- function()
 
 
-plot_desica <- function(d){
-  
-  par(mfrow=c(2,2), mar=c(4,4,1,1))
 
-  with(d, {
-    plot(t, psis, type='l', ylim=c(-8,0))
-    lines(t, psil, col="forestgreen")
-    lines(t, psist, col="blue2")
-    abline(h=-3)
-  })
-  
-  plot(d$sw, type='l')
-  
-  with(d, {
-    plot(t, Jsl, type='l')
-    lines(t, Jrs, col="blue2")
-  })
-  
-}
-        
 plot_desica(d)
+
+
+plot(cumsum(d$Jrs), type='l')
+lines(cumsum(d$Eplant), col="red")
+
+# somewhat arbitrary point where phase 2 begins?
+# ks has dropped to 5% of plant conductance
+# soil is now super limiting
+x <- subset(d, ks < 0.05*max(kp))
+with(d, plot(t, Eleaf, type='l'))
+with(x, lines(t, Eleaf, col="red"))
 
 
 
@@ -72,6 +72,8 @@ plot_desica(d)
   with(martin, plot(P50, Pgs50, pch=19, col=as.factor(Group),
                     xlim=c(-15,0), ylim=c(-5,0)))  
   abline(0,1)
+  
+  
   
   
   ge <- read.csv("data/ge_R.csv")
@@ -104,7 +106,6 @@ baad <- readRDS(baad_file)$data
 mss <- subset(baad, !is.na(m.ss))
 
 with(mss, plot(log10(m.lf), log10(m.ss), pch=19, col=as.factor(studyName)))
-abline(2,1)
 
 
 library(smatr)
@@ -115,6 +116,47 @@ magicaxis::magaxis(side=1:2, unlog=1:2)
 
 sfit0 <- sma(m.ss ~ m.lf, data=mss, log="xy")
 coef(sfit0)
+
+
+# Sapwood capacitance
+m.lf <- 1   # kg
+wood_dens <- 0.8  # g cm-3 = t m-3 = kg dm-3
+pore_frac <- 0.6  
+cs <- 0.15  # RWC MPa-1  - specific capacitance
+
+m.ss <- 11.2 * m.lf^1.33  # kg of sapwood
+v.ss <- m.ss / wood_dens  # liters of sapwood volume (dm3)
+
+Vs <- pore_frac * v.ss    # liters of water in saturated tree
+
+Cs_l <- Vs * cs   # liters = kg MPa-1
+Cs <- Cs_l * 1000 * 1/18 * 1000  # mmol MPa-1
+
+# Leaf capacitance
+# ???
+LMA <- 100
+
+LWA <- 200 # see roderick script, leaf water content per unit area (g m-2)
+
+cl <- 0.1  # specific capacitance, RWC MPa-1. I don't know the value, so let's assume
+           # same as sapwood, based on Ximeng's comparison
+
+Cl_g <- cl * LWA  # g m-2 MPa-1
+
+Cl_m2 <- Cl_g * 1000 / 18  # mmol m-2 MPa-1
+
+# using m.lf = 1 from above, and LMA=100, we get:
+AL <- 1000 * m.lf / LMA
+
+Cl <- Cl_m2 * AL
+
+
+
+
+
+
+
+
 
 
 

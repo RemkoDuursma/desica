@@ -103,7 +103,7 @@ desica <- function(met=NULL,
                    
                    psil0=-2, 
                    psist0=-1, 
-                   timestep=1*60,   # seconds
+                   timestepmin=1,   # seconds
                    thetasat=0.5, 
                    sw0=0.5,
                    AL=1,
@@ -112,17 +112,32 @@ desica <- function(met=NULL,
                    b=6,
                    psie= -0.8*1E-03,
                    Ksat=200,
+                   Lv=10000,
                    
                    keepwet=FALSE,
                    stopsimdead=FALSE,
-                   plcdead=50
+                   plcdead=50,
+                   mf=NA,
+                   LMA=NA
                    ){
   
 
   if(is.null(met)){
     stop("Must provide met dataframe with VPD, Tair, PPFD, precip (optional)")
   }
+  
+  # Increase length of met to conform with timestep of solution.
+  # met will have 15min timestep, so if solution timestep (timestepmin) is 1,
+  # repeat each row 15 times
+  met$row <- 1:nrow(met)
+  met$day <- rep(1:(nrow(met) / (24*4)), each=24*4)
+  ntimes <- 15 / timestepmin
+  ind <- rep(1:nrow(met), each=ntimes)
+  met <- met[ind,]
+  
   n <- nrow(met)
+
+  timestep_sec <- 60*timestepmin
   
   LAI <- AL / groundarea
   soilvolume <- groundarea * soildepth
@@ -134,7 +149,7 @@ desica <- function(met=NULL,
   sw[1] <- sw0
   psis[1] <- psie*(sw0/thetasat)^-b
   Eleaf[1] <- 0
-  ks[1] <- ksoil_fun(psis[1], Ksat, psie, b, LAI, soildepth=soildepth)
+  ks[1] <- ksoil_fun(psis[1], Ksat, psie, b, LAI, soildepth=soildepth, Lv=Lv)
   
   psirs[1] <- psis[1]
   
@@ -160,7 +175,7 @@ desica <- function(met=NULL,
                   PPFD=met$PPFD[i],
                   Ca=Ca)
     
-    # Leaf transpiration (mol m-2 s-1)
+    # Leaf transpiration (mmol m-2 s-1)
     Eleaf[i] <- p$ELEAF + (met$VPD[i]/101)*gmin
     
     # Xu method.
@@ -168,23 +183,23 @@ desica <- function(met=NULL,
     # Then it follows (Xu et al. 2016, Appendix, and Code).
     bp <- (AL * 2 * kstl[i]*psist[i-1] - AL*Eleaf[i])/Cl
     ap <- -(AL * 2 * kstl[i] / Cl)
-    psil[i] <- ((ap*psil[i-1] + bp)*exp(ap*timestep) - bp)/ap
+    psil[i] <- ((ap*psil[i-1] + bp)*exp(ap*timestep_sec) - bp)/ap
     
     # Flux from stem to leaf= change in leaf storage, plus transpiration
-    Jsl[i] <- (psil[i] - psil[i-1]) * Cl / timestep + AL*Eleaf[i]
+    Jsl[i] <- (psil[i] - psil[i-1]) * Cl / timestep_sec + AL*Eleaf[i]
     
     # Update stem water potential
     # Also from Xu et al. 2016.
     bp <- (AL * 2 * krst[i] * psis[i-1] - Jsl[i])/Cs
     ap <- -(AL * 2 * krst[i] / Cs)
-    psist[i] <- ((ap*psist[i-1] + bp)*exp(ap*timestep) - bp)/ap
+    psist[i] <- ((ap*psist[i-1] + bp)*exp(ap*timestep_sec) - bp)/ap
     
     # flux from soil to stem = change in stem storage, plus Jrl
-    Jrs[i] <- (psist[i] - psist[i-1])*Cs/timestep + Jsl[i]
+    Jrs[i] <- (psist[i] - psist[i-1])*Cs/timestep_sec + Jsl[i]
     
     # Soil water increase: precip - transpiration (units kg total timestep-1)
     # (Note: transpiration is part of Jrs).
-    water_in <- groundarea * met$precip[i] - timestep*1E-06*18*Jrs[i]
+    water_in <- groundarea * met$precip[i] - timestep_sec*1E-06*18*Jrs[i]
     sw[i] <- pmin(1, sw[i-1] + water_in / (soilvolume * thetasat * 1E03))  # sw in units m3 m-3
     
     # for debugging / comparison.
@@ -208,12 +223,39 @@ desica <- function(met=NULL,
                         psirs=psirs, ks=ks, psil=psil, kp=kp,
                         psist=psist, Jsl=Jsl, Jrs=Jrs)[-1,])
   
+  d$plc <- 100 * (1 - d$kp / kpsat)
+  d$Eplant <- AL * Eleaf[-1]
   d$t <- 1:nrow(d)
+  
+  # stem water storage
+  d$Wstem <- d$psist * Cs
   
   # when stopsimdead, last many rows are NA
   d <- d[!is.na(d$psis),]
   
   return(d)
+}
+
+
+plot_desica <- function(d, p50=-3){
+  
+  par(mfrow=c(2,2), mar=c(4,4,1,1))
+  
+  with(d, {
+    plot(t, psis, type='l', ylim=c(-8,0))
+    lines(t, psil, col="forestgreen")
+    lines(t, psist, col="blue2")
+    abline(h=p50)
+  })
+  
+  plot(d$sw, type='l')
+  
+  with(d, {
+    plot(t, Jsl, type='l')
+    lines(t, Jrs, col="blue2")
+  })
+  
+  plot(d$plc, type='l')
 }
 
 
