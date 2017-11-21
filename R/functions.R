@@ -1,7 +1,7 @@
 
 desica <- function(met=NULL,
                    met_timestep = 15,
-                   runtwice = FALSE,
+                   runtwice = TRUE,
 
                    Ca = 400,  
                    sf=8,
@@ -319,6 +319,11 @@ plot_desica_2 <- function(d, p50=-3){
 
 summarize_desica <- function(d){
   
+  if(!is.data.frame(d)){
+    res <- lapply(d, summarize_desica)
+    return(as.data.frame(do.call(rbind, res)))
+  }
+  
   phase2 <- subset(d, ks < 0.05*max(kp, na.rm=TRUE))
   simtot <- nrow(d) / (4*24)
   sim2 <- nrow(phase2) / (4*24)
@@ -328,4 +333,17 @@ summarize_desica <- function(d){
   
 }
 
+
+
+checkwatbal <- function(run, i=nrow(run)){
+  
+  # liters (1000 = nr liters for 1m3 soil volume, setting used)
+  water_lost <- (run$sw[1] - run$sw[i]) * 1000
+  
+  # transpiration;
+  water_used <- sum(run$Jrs[1:i] * 15 * 60 * 1E-03 * 18 * 1E-03, na.rm=TRUE)
+  
+  return(c(soilwater_decrease=water_lost, rootwateruptake=water_used))
+  
+}
 
