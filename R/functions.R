@@ -83,7 +83,7 @@ desica <- function(met=NULL,
         out2$psil[i-1] <- out$psil[i]
         out2$psist[i-1] <- out$psist[i]
 
-        out <- calc_timestep(met, i, out2, pars)
+        out <- desica_calc_timestep(met, i, out2, pars)
       
     }
     
