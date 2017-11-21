@@ -71,6 +71,9 @@ ksoil_fun <- function(psis,
 }
 
 
+curve(ksoil_fun(x, 20, -0.8*1E-03,6,1), from=-1, to=0)
+
+
 fsig_tuzet <- function(psil, psiv, sf){
   (1 + exp(sf*psiv)) / (1 + exp(sf*(psiv - psil)))
 }
@@ -90,10 +93,11 @@ fsig_hydr <- function(P, SX, PX, X=50){
 desica <- function(met=NULL,
                     met_timestep = 15,
                     runs_per_timestep = 1,
+                    runtwice=FALSE,
                     
                     Ca = 400,  
                     sf=8,
-                    g1=5,
+                    g1=10,
                     
                     Cs = 100000,
                     Cl = 10000,
@@ -108,7 +112,7 @@ desica <- function(met=NULL,
                     psist0=-0.5, 
                     
                     thetasat=0.5, 
-                    sw0=0.4,
+                    sw0=0.5,
                     AL=2.5,
                     soildepth=1,
                     groundarea=1,
@@ -156,9 +160,30 @@ desica <- function(met=NULL,
                Lv=Lv,keepwet=keepwet,stopsimdead=stopsimdead,
                plcdead=plcdead)
   
+  if(runtwice)pars$timestep_sec <- pars$timestep_sec / 2
+  
   for(i in 2:n){
     
     out <- calc_timestep(met, i, out, pars)
+    
+    if(runtwice){
+      # save solutions, use as input for another run,
+      # keeping everything else the same
+      ks_ <- out$ks[i]
+      psis_ <- out$psis[i]
+      ws_ <- out$ws[i]
+      psil_ <- out$psil[i]
+      psist_ <- out$psist[i]
+      
+      out2 <- out
+      out2$ks[i-1] <- ks_
+      out2$psis[i-1] <- psis_
+      out2$ws[i-1] <- ws_
+      out2$psil[i-1] <- psil_
+      out2$psist[i-1] <- psist_
+      
+      out <- calc_timestep(met, i, out2, pars)
+    }
     
     if(stopsimdead){
       plc <- 100*(1 - out$kp[i]/pars$kpsat)
@@ -181,7 +206,7 @@ desica <- function(met=NULL,
 
 
 
-# Using previous timestep psist, psil and ks, calculate fluxes/pools for next timestep
+# Using previous timestep psist, psil, psis, ws and ks, calculate fluxes/pools for next timestep
 # can only calculate timestep i when i-1 has been calculated!
 calc_timestep <- function(met, i, out, pars){
   
@@ -198,13 +223,17 @@ calc_timestep <- function(met, i, out, pars){
   # packageVersion("plantecophys") >= "1.2-6"
   p <- Photosyn(VPD=met$VPD[i], 
                 gsmodel="BBdefine", 
+                g0=0.001,
                 BBmult=(pars$g1/pars$Ca)*fsig_tuzet(out$psil[i-1], pars$psiv, pars$sf), 
                 Tleaf=met$Tair[i],
                 PPFD=met$PPFD[i],
                 Ca=pars$Ca)
   
+  # Don't add gmin, instead use it as bottom value.
+  gs <- pmax(pars$gmin, 1000 * p$GS)
+  
   # Leaf transpiration (mmol m-2 s-1)
-  out$Eleaf[i] <- p$ELEAF + (met$VPD[i]/101)*pars$gmin
+  out$Eleaf[i] <- (met$VPD[i]/101)*gs
   
   # Xu method.
   # Can write the dynamic equation as: dPsil_dt = b + a*psil
@@ -273,13 +302,12 @@ plot_desica <- function(d, p50=-3){
 
 summarize_desica <- function(d){
   
-  phase2 <- subset(d, ks < 0.05*max(kp))
+  phase2 <- subset(d, ks < 0.05*max(kp, na.rm=TRUE))
   simtot <- nrow(d) / (4*24)
   sim2 <- nrow(phase2) / (4*24)
   sim1 <- simtot - sim2
   
-  return(c(phase1=sim1, phase2=sim2, p50=p50, psiv=psiv, gmin=gmin, 
-           capac=capac, plcfinal=d$plc[nrow(d)]))
+  return(c(phase1=sim1, phase2=sim2, plcfinal=d$plc[nrow(d)]))
   
 }
 

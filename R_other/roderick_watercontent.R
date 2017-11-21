@@ -18,9 +18,9 @@ fit <- sma(LWA ~ LMA, data=rod)
 # scales with LWA ~ LMA^0.6
 #fit2 <- sma(LWA ~ LMA, data=rod, log="xy")
 
-
+windows(6,5)
 par(mar=c(5,5,1,1), las=1, xaxs="i", yaxs="i",
-    cex.axis=0.9, cex.lab=1.1)
+    cex.axis=0.9, cex.lab=1.2, family="Gotham Narrow Book")
 with(rod, plot(LMA, LWA, 
                pch=19, col="slategrey",
                xlim=c(0,200),
@@ -28,8 +28,8 @@ with(rod, plot(LMA, LWA,
                xlab=expression(LMA~~(gDM~m^-2)),
                ylab=expression(LWA~~(g~H[2]*O~m^-2))))
 plot(fit, add=TRUE, type='l', col="black")
-abline(0,1, lty=3)
-
+abline(0,1, lty=5)
+dev.copy2pdf(file="output/9.pdf")
 
 
 
