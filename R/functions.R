@@ -1,4 +1,193 @@
 
+desica <- function(met=NULL,
+                   met_timestep = 15,
+                   runs_per_timestep = 1,
+                   runtwice=FALSE,
+                   
+                   Ca = 400,  
+                   sf=8,
+                   g1=10,
+                   
+                   Cs = 100000,
+                   Cl = 10000,
+                   
+                   kpsat=3,
+                   p50 = -4,
+                   psiv=-2,
+                   s50 = 30,
+                   gmin = 10, # mmol m-2 s-1
+                   
+                   psil0=-1, 
+                   psist0=-0.5, 
+                   
+                   thetasat=0.5, 
+                   sw0=0.5,
+                   AL=2.5,
+                   soildepth=1,
+                   groundarea=1,
+                   b=6,
+                   psie= -0.8*1E-03,
+                   Ksat=20,
+                   Lv=10000,
+                   
+                   keepwet=FALSE,
+                   stopsimdead=TRUE,
+                   plcdead=88,
+                   mf=NA,
+                   LMA=NA){
+  
+  if(is.null(met)){
+    stop("Must provide met dataframe with VPD, Tair, PPFD, precip (optional)")
+  }
+  n <- nrow(met)
+  
+  timestep_sec <- 60*met_timestep / runs_per_timestep
+  
+  LAI <- AL / groundarea
+  soilvolume <- groundarea * soildepth
+  
+  # Initial conditions
+  na <- rep(NA, nrow(met))
+  out <- data.frame(Eleaf=na,psil=na,psist=na,psis=na,sw=na,
+                    ks=na,kp=na,Jsl=na,Jrs=na,krst=na,kstl=na)
+  
+  out$psil[1] <- psil0
+  out$psist[1] <- psist0
+  out$sw[1] <- sw0
+  out$psis[1] <- psie*(sw0/thetasat)^-b
+  out$Eleaf[1] <- 0
+  
+  # soil-to-root conductance
+  out$ks[1] <- ksoil_fun(out$psis[1], Ksat, psie, b, 
+                         LAI, soildepth=soildepth, Lv=Lv)
+  
+  pars <- list(timestep_sec=timestep_sec,
+               psiv=psiv,sf=sf,g1=g1,Ca=Ca,Cs=Cs,
+               Cl=Cl,kpsat=kpsat,p50=p50,s50=s50,gmin=gmin,
+               thetasat =thetasat,AL=AL,soildepth=soildepth,
+               soilvolume=soilvolume,groundarea=groundarea,
+               LAI=LAI,b=b,psie=psie,Ksat=Ksat,
+               Lv=Lv,keepwet=keepwet,stopsimdead=stopsimdead,
+               plcdead=plcdead)
+  
+  # Timestep for solution does not have to equal timestep for met data.
+  # (but output will be always in resolution of met data)
+  if(runtwice){
+    pars$timestep_sec <- pars$timestep_sec / 2
+  }
+  
+  for(i in 2:n){
+    
+    out <- desica_calc_timestep(met, i, out, pars)
+    
+    if(runtwice){
+      # save solutions, use as input for another run,
+      # keeping everything else the same
+      # pretty lame implementation but it works
+      psil_ <- out$psil[i]
+      psist_ <- out$psist[i]
+      
+      out2 <- out
+      out2$psil[i-1] <- psil_
+      out2$psist[i-1] <- psist_
+      
+      out <- calc_timestep(met, i, out2, pars)
+    }
+    
+    if(stopsimdead){
+      plc <- 100*(1 - out$kp[i]/pars$kpsat)
+      if(plc > plcdead)break
+    }
+    
+  }
+  
+  d <- cbind(met, out)
+  d$plc <- 100 * (1 - d$kp / kpsat)
+  d$Eplant <- AL * out$Eleaf
+  d$t <- 1:nrow(d)
+  
+  # when stopsimdead, last many rows are NA
+  d <- d[!is.na(d$psis),]
+  
+  return(d)
+}
+
+
+
+# Using previous timestep psist, psil, psis, ws and ks, calculate fluxes/pools for next timestep
+# can only calculate timestep i when i-1 has been calculated!
+desica_calc_timestep <- function(met, i, out, pars){
+  
+  # Plant hydraulic conductance
+  # Note how it depends on previous timestep stem water potential.
+  out$kp[i] <- pars$kpsat * fsig_hydr(out$psist[i-1], pars$s50, pars$p50)    
+  
+  # from soil to stem pool
+  out$krst[i] <- 1 / (1/out$ks[i-1] + 1/(2*out$kp[i]))
+  
+  # from stem pool to leaf
+  out$kstl[i] <- 2*out$kp[i]
+  
+  # packageVersion("plantecophys") >= "1.2-6"
+  # Estimate stomatal conductance, etc. with known leaf water potential.
+  # (Unlike in true Tuzet model, we don't solve for psil but instead use it as input,
+  # via the BBmult option in Photosyn)
+  p <- Photosyn(VPD=met$VPD[i], 
+                gsmodel="BBdefine", 
+                g0=0.001,
+                BBmult=(pars$g1/pars$Ca)*fsig_tuzet(out$psil[i-1], pars$psiv, pars$sf), 
+                Tleaf=met$Tair[i],
+                PPFD=met$PPFD[i],
+                Ca=pars$Ca)
+  
+  # Don't add gmin, instead use it as bottom value.
+  gs <- pmax(pars$gmin, 1000 * p$GS)
+  
+  # Leaf transpiration (mmol m-2 s-1)
+  out$Eleaf[i] <- (met$VPD[i]/101)*gs
+  
+  # Xu method.
+  # Can write the dynamic equation as: dPsil_dt = b + a*psil
+  # Then it follows (Xu et al. 2016, Appendix, and Code).
+  bp <- (pars$AL * 2 * out$kstl[i] * out$psist[i-1] - pars$AL * out$Eleaf[i])/pars$Cl
+  ap <- -(pars$AL * 2 * out$kstl[i] / pars$Cl)
+  out$psil[i] <- ((ap * out$psil[i-1] + bp) * exp(ap * pars$timestep_sec) - bp)/ap
+  
+  # Flux from stem to leaf= change in leaf storage, plus transpiration
+  out$Jsl[i] <- (out$psil[i] - out$psil[i-1]) * pars$Cl / pars$timestep_sec + pars$AL * out$Eleaf[i]
+  
+  # Update stem water potential
+  # Also from Xu et al. 2016.
+  bp <- (pars$AL * 2 * out$krst[i] * out$psis[i-1] - out$Jsl[i]) / pars$Cs
+  ap <- -(pars$AL * 2 * out$krst[i] / pars$Cs)
+  out$psist[i] <- ((ap*out$psist[i-1] + bp) * exp(ap*pars$timestep_sec) - bp)/ap
+  
+  # flux from soil to stem = change in stem storage, plus Jrl
+  out$Jrs[i] <- (out$psist[i] - out$psist[i-1]) * pars$Cs / pars$timestep_sec + out$Jsl[i]
+  
+  # Soil water increase: precip - transpiration (units kg total timestep-1)
+  # (Note: transpiration is part of Jrs).
+  water_in <- pars$groundarea * met$precip[i] - pars$timestep_sec * 1E-06*18 * out$Jrs[i]
+  
+  # soil water content (sw) in units m3 m-3
+  out$sw[i] <- pmin(1, out$sw[i-1] + water_in / (pars$soilvolume * pars$thetasat * 1E03))  
+  
+  # for debugging / comparison.
+  if(pars$keepwet){
+    out$sw[i] <- out$sw[i-1]
+  }
+  
+  # Update soil water potential and soil-to-root hydraulic conductance
+  out$psis[i] <- pars$psie * (out$sw[i]/pars$thetasat)^-pars$b
+  out$ks[i] <- ksoil_fun(out$psis[i], Ksat=pars$Ksat, psie=pars$psie, 
+                         b=pars$b, LAI=pars$LAI, soildepth=pars$soildepth)
+  
+  
+  return(out)
+}
+
+
+
 diurnal_sim <- function(PPFDmax=2000, RH=30, 
                         Tmax=30, Tmin=15,
                         daylength=12, 
@@ -71,7 +260,6 @@ ksoil_fun <- function(psis,
 }
 
 
-curve(ksoil_fun(x, 20, -0.8*1E-03,6,1), from=-1, to=0)
 
 
 fsig_tuzet <- function(psil, psiv, sf){
@@ -90,194 +278,30 @@ fsig_hydr <- function(P, SX, PX, X=50){
   return(relk)
 }
 
-desica <- function(met=NULL,
-                    met_timestep = 15,
-                    runs_per_timestep = 1,
-                    runtwice=FALSE,
-                    
-                    Ca = 400,  
-                    sf=8,
-                    g1=10,
-                    
-                    Cs = 100000,
-                    Cl = 10000,
-                    
-                    kpsat=3,
-                    p50 = -4,
-                    psiv=-2,
-                    s50 = 30,
-                    gmin = 10, # mmol m-2 s-1
-                    
-                    psil0=-1, 
-                    psist0=-0.5, 
-                    
-                    thetasat=0.5, 
-                    sw0=0.5,
-                    AL=2.5,
-                    soildepth=1,
-                    groundarea=1,
-                    b=6,
-                    psie= -0.8*1E-03,
-                    Ksat=20,
-                    Lv=10000,
-                    
-                    keepwet=FALSE,
-                    stopsimdead=TRUE,
-                    plcdead=88,
-                    mf=NA,
-                    LMA=NA){
+
+
+plot_desica <- function(run){
   
-  if(is.null(met)){
-    stop("Must provide met dataframe with VPD, Tair, PPFD, precip (optional)")
-  }
-  n <- nrow(met)
+  par(mar=c(4,4,1,4), tcl=0.2, mgp=c(2.2,0.4,0), cex.lab=1.2)
+  with(run, plot(t/96, psil, type='l',
+                  xlab="Time (days)",
+                  ylab="Water potential (MPa)"))
+  with(run, lines(t/96, psist, col="red"))
+  with(run, lines(t/96, psis, lwd=2, col="cornflowerblue"))
+  legend(0,-2.5,c("Leaf","Stem","PLC"), lty=1, col=c("black","red","darkgrey"),
+         inset=0.02)
   
-  timestep_sec <- 60*met_timestep / runs_per_timestep
-  
-  LAI <- AL / groundarea
-  soilvolume <- groundarea * soildepth
-  
-  # Initial conditions
-  na <- rep(NA, nrow(met))
-  out <- data.frame(Eleaf=na,psil=na,psist=na,psis=na,sw=na,
-                    ks=na,kp=na,Jsl=na,Jrs=na,krst=na,kstl=na)
-  
-  out$psil[1] <- psil0
-  out$psist[1] <- psist0
-  out$sw[1] <- sw0
-  out$psis[1] <- psie*(sw0/thetasat)^-b
-  out$Eleaf[1] <- 0
-  
-  # soil-to-root conductance
-  out$ks[1] <- ksoil_fun(out$psis[1], Ksat, psie, b, 
-                         LAI, soildepth=soildepth, Lv=Lv)
-  
-  pars <- list(timestep_sec=timestep_sec,psiv=psiv,sf=sf,g1=g1,Ca=Ca,Cs=Cs,
-               Cl=Cl,kpsat=kpsat,p50=p50,s50=s50,gmin=gmin,
-               thetasat =thetasat,AL=AL,soildepth=soildepth,
-               soilvolume=soilvolume,groundarea=groundarea,
-               LAI=LAI,b=b,psie=psie,Ksat=Ksat,
-               Lv=Lv,keepwet=keepwet,stopsimdead=stopsimdead,
-               plcdead=plcdead)
-  
-  if(runtwice)pars$timestep_sec <- pars$timestep_sec / 2
-  
-  for(i in 2:n){
-    
-    out <- calc_timestep(met, i, out, pars)
-    
-    if(runtwice){
-      # save solutions, use as input for another run,
-      # keeping everything else the same
-      ks_ <- out$ks[i]
-      psis_ <- out$psis[i]
-      ws_ <- out$ws[i]
-      psil_ <- out$psil[i]
-      psist_ <- out$psist[i]
-      
-      out2 <- out
-      out2$ks[i-1] <- ks_
-      out2$psis[i-1] <- psis_
-      out2$ws[i-1] <- ws_
-      out2$psil[i-1] <- psil_
-      out2$psist[i-1] <- psist_
-      
-      out <- calc_timestep(met, i, out2, pars)
-    }
-    
-    if(stopsimdead){
-      plc <- 100*(1 - out$kp[i]/pars$kpsat)
-      if(plc > plcdead)break
-    }
-    
-  }
-  
-  d <- cbind(met, out)
-  d$plc <- 100 * (1 - d$kp / kpsat)
-  d$Eplant <- AL * out$Eleaf
-  d$t <- 1:nrow(d)
-  
-  # when stopsimdead, last many rows are NA
-  d <- d[!is.na(d$psis),]
-  
-  return(d)
+  par(new=TRUE)
+  with(run, plot(t/96, plc, type='l', col="darkgrey",
+                  ann=FALSE,
+                  axes=FALSE))
+  axis(4)
+  mtext(side=4, line=2.2, cex=1.2, text="PLC (%)")
+
+
 }
 
-
-
-
-# Using previous timestep psist, psil, psis, ws and ks, calculate fluxes/pools for next timestep
-# can only calculate timestep i when i-1 has been calculated!
-calc_timestep <- function(met, i, out, pars){
-  
-  # Plant hydraulic conductance
-  # Note how it depends on previous timestep stem water potential.
-  out$kp[i] <- pars$kpsat * fsig_hydr(out$psist[i-1], pars$s50, pars$p50)    
-  
-  # from soil to stem pool
-  out$krst[i] <- 1 / (1/out$ks[i-1] + 1/(2*out$kp[i]))
-  
-  # from stem pool to leaf
-  out$kstl[i] <- 2*out$kp[i]
-  
-  # packageVersion("plantecophys") >= "1.2-6"
-  p <- Photosyn(VPD=met$VPD[i], 
-                gsmodel="BBdefine", 
-                g0=0.001,
-                BBmult=(pars$g1/pars$Ca)*fsig_tuzet(out$psil[i-1], pars$psiv, pars$sf), 
-                Tleaf=met$Tair[i],
-                PPFD=met$PPFD[i],
-                Ca=pars$Ca)
-  
-  # Don't add gmin, instead use it as bottom value.
-  gs <- pmax(pars$gmin, 1000 * p$GS)
-  
-  # Leaf transpiration (mmol m-2 s-1)
-  out$Eleaf[i] <- (met$VPD[i]/101)*gs
-  
-  # Xu method.
-  # Can write the dynamic equation as: dPsil_dt = b + a*psil
-  # Then it follows (Xu et al. 2016, Appendix, and Code).
-  bp <- (pars$AL * 2 * out$kstl[i] * out$psist[i-1] - pars$AL * out$Eleaf[i])/pars$Cl
-  ap <- -(pars$AL * 2 * out$kstl[i] / pars$Cl)
-  out$psil[i] <- ((ap * out$psil[i-1] + bp) * exp(ap * pars$timestep_sec) - bp)/ap
-  
-  # Flux from stem to leaf= change in leaf storage, plus transpiration
-  out$Jsl[i] <- (out$psil[i] - out$psil[i-1]) * pars$Cl / pars$timestep_sec + pars$AL * out$Eleaf[i]
-  
-  # Update stem water potential
-  # Also from Xu et al. 2016.
-  bp <- (pars$AL * 2 * out$krst[i] * out$psis[i-1] - out$Jsl[i]) / pars$Cs
-  ap <- -(pars$AL * 2 * out$krst[i] / pars$Cs)
-  out$psist[i] <- ((ap*out$psist[i-1] + bp) * exp(ap*pars$timestep_sec) - bp)/ap
-  
-  # flux from soil to stem = change in stem storage, plus Jrl
-  out$Jrs[i] <- (out$psist[i] - out$psist[i-1]) * pars$Cs / pars$timestep_sec + out$Jsl[i]
-  
-  # Soil water increase: precip - transpiration (units kg total timestep-1)
-  # (Note: transpiration is part of Jrs).
-  water_in <- pars$groundarea * met$precip[i] - pars$timestep_sec * 1E-06*18 * out$Jrs[i]
-  
-  # soil water content (sw) in units m3 m-3
-  out$sw[i] <- pmin(1, out$sw[i-1] + water_in / (pars$soilvolume * pars$thetasat * 1E03))  
-  
-  # for debugging / comparison.
-  if(pars$keepwet){
-    out$sw[i] <- out$sw[i-1]
-  }
-  
-  # Update soil water potential and soil-to-root hydraulic conductance
-  out$psis[i] <- pars$psie * (out$sw[i]/pars$thetasat)^-pars$b
-  out$ks[i] <- ksoil_fun(out$psis[i], Ksat=pars$Ksat, psie=pars$psie, 
-                         b=pars$b, LAI=pars$LAI, soildepth=pars$soildepth)
-  
-  
-  return(out)
-}
-
-
-
-plot_desica <- function(d, p50=-3){
+plot_desica_2 <- function(d, p50=-3){
   
   par(mfrow=c(2,2), mar=c(4,4,1,1))
   

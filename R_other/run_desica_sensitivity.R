@@ -1,5 +1,10 @@
 
-source("load.R")
+source("R/load.R")
+
+
+martin <- read_excel("data/DataBase.xlsx", sheet=4)
+names(martin)[6] <- "Pgs50"
+
 
 # Make simulation dataframe (combinations of inputs)
 # Sample psiv and p50 from Martin-StPaul
