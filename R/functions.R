@@ -1,9 +1,8 @@
 
 desica <- function(met=NULL,
                    met_timestep = 15,
-                   runs_per_timestep = 1,
-                   runtwice=FALSE,
-                   
+                   runtwice = FALSE,
+
                    Ca = 400,  
                    sf=8,
                    g1=10,
@@ -41,7 +40,8 @@ desica <- function(met=NULL,
   }
   n <- nrow(met)
   
-  timestep_sec <- 60*met_timestep / runs_per_timestep
+  timestep_sec <- 60*met_timestep
+  if(runtwice)timestep_sec <- timestep_sec / 2
   
   LAI <- AL / groundarea
   soilvolume <- groundarea * soildepth
@@ -70,28 +70,21 @@ desica <- function(met=NULL,
                Lv=Lv,keepwet=keepwet,stopsimdead=stopsimdead,
                plcdead=plcdead)
   
-  # Timestep for solution does not have to equal timestep for met data.
-  # (but output will be always in resolution of met data)
-  if(runtwice){
-    pars$timestep_sec <- pars$timestep_sec / 2
-  }
-  
+
   for(i in 2:n){
     
     out <- desica_calc_timestep(met, i, out, pars)
     
+    # save solutions, use as input for another run,
+    # keeping everything else the same
     if(runtwice){
-      # save solutions, use as input for another run,
-      # keeping everything else the same
-      # pretty lame implementation but it works
-      psil_ <- out$psil[i]
-      psist_ <- out$psist[i]
       
-      out2 <- out
-      out2$psil[i-1] <- psil_
-      out2$psist[i-1] <- psist_
+        out2 <- out
+        out2$psil[i-1] <- out$psil[i]
+        out2$psist[i-1] <- out$psist[i]
+
+        out <- calc_timestep(met, i, out2, pars)
       
-      out <- calc_timestep(met, i, out2, pars)
     }
     
     if(stopsimdead){
@@ -170,7 +163,7 @@ desica_calc_timestep <- function(met, i, out, pars){
   water_in <- pars$groundarea * met$precip[i] - pars$timestep_sec * 1E-06*18 * out$Jrs[i]
   
   # soil water content (sw) in units m3 m-3
-  out$sw[i] <- pmin(1, out$sw[i-1] + water_in / (pars$soilvolume * pars$thetasat * 1E03))  
+  out$sw[i] <- pmin(1, out$sw[i-1] + water_in / (pars$soilvolume * 1E03))  
   
   # for debugging / comparison.
   if(pars$keepwet){
