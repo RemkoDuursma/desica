@@ -1,11 +1,29 @@
-
+library(extrafont)
 
 metsub <- met[1:(2*96),]
 r1 <- desica(metsub, p50=-4, psiv=-3, 
                   gmin=10, Cl=0.1*150000,
                      Cs=0.9*150000)
 
-     
+#0
+fn <- fitplc::fweibull
+windows(6,5)
+par(mar=c(4,4,1,1), tcl=0.2, mgp=c(2.2,0.4,0), cex.lab=1.2,
+    family="Gotham Narrow Book")
+curve(1-fn(x, SX=30, PX=-3), from=0, to=-10,
+      ylab="Hydraulic conductance (rel.)",
+      xlab="Water potential (MPa)",
+      ylim=c(0,1))
+
+segments(x0=-12, x1=-6,
+         y0=1-fn(-6, SX=30, PX=-3), y1=1-fn(-6, SX=30, PX=-3),
+         col="dimgrey", lty=5)
+segments(x0=-6, x1=-6,
+         y0=0, y1=1-fn(-6, SX=30, PX=-3),
+         col="dimgrey", lty=5)
+text(-6, 0.18, expression(P[88]), cex=1.4)
+dev.copy2pdf(file="output/0.pdf")
+
 #1
 windows(6,5)
 par(mar=c(4,4,1,1), tcl=0.2, mgp=c(2.2,0.4,0), cex.lab=1.2)
