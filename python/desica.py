@@ -14,18 +14,20 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+from generate_met_data import generate_met_data
 
 class Desica(object):
 
-    def __init__(self):
-
-        pass
+    def __init__(self, met):
+        self.met = met
+        
 
     def main(self):
 
         pass
-    
+
 if __name__ == "__main__":
 
-    D = Desica()
+    met = generate_met_data(Tmin=10, RH=30, ndays=200)
+    D = Desica(met)
     D.main()
