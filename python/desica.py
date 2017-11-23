@@ -72,6 +72,9 @@ class Desica(object):
         out.psis[0] = self.psie * (self.sw0 / self.theta_sat)**-self.b
         out.Eleaf[0] = 0.0
 
+        # soil-to-root conductance
+        out.ks[0] = self.calc_ksoil(out.psis[0])
+
         return n, out
 
     def setup_out_df(self):
@@ -82,6 +85,22 @@ class Desica(object):
                             'kstl':dummy})
 
         return out
+
+    def calc_ksoil(self, psis):
+
+        rroot = 1E-06
+
+        Ks = self.Ksat * (self.psie / psis)**(2. + 3. / self.b)
+        if psis == 0.0:
+            Ks = self.Ksat
+
+        rcyl = 1.0 / np.sqrt(np.pi * self.Lv)
+        Rl = self.Lv * self.soil_depth
+        Ksoil = (Rl / self.lai) * 2. * np.pi * Ks / np.log(rcyl / rroot)
+
+        return Ksoil
+
+
 
 if __name__ == "__main__":
 
