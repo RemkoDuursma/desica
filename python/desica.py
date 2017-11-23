@@ -18,16 +18,15 @@ from generate_met_data import generate_met_data
 
 class Desica(object):
 
-    def __init__(self, met):
-        self.met = met
-        
+    def __init__(self):
+        pass
 
-    def main(self):
 
+    def run_me(self, met):
         pass
 
 if __name__ == "__main__":
 
     met = generate_met_data(Tmin=10, RH=30, ndays=200)
-    D = Desica(met)
-    D.main()
+    D = Desica()
+    D.run_me(met)
