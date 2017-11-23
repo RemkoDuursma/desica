@@ -62,6 +62,13 @@ class Desica(object):
 
         (n, out) = self.initial_model()
 
+        for i in range(1, n+1):
+
+            # Plant hydraulic conductance
+            # Note how it depends on previous timestep stem water potential.
+            out.kp[i] = self.kpsat * self.fsig_hydr(out.psist[i-1])
+            
+
     def initial_model(self):
         n = len(met)
 
@@ -100,7 +107,18 @@ class Desica(object):
 
         return Ksoil
 
+    def fsig_hydr(self, P):
+        X = 50.
+        SX = self.s50
+        PX = self.p50
 
+        P = np.abs(P)
+        PX = np.abs(PX)
+        V = (X - 100.) * np.log(1.0 - X / 100.)
+        p = (P / PX)**((PX * SX) / V)
+        relk = (1. - X / 100.)**p
+
+        return (relk)
 
 if __name__ == "__main__":
 
