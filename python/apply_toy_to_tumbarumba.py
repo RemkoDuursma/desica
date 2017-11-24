@@ -137,7 +137,7 @@ if __name__ == "__main__":
     met['year'] = met.index.year
     met['doy'] = met.index.dayofyear
 
-    met = met[met.index.year < 2006]
+    #met = met[met.index.year < 2006]
 
     psi_stem0 = 0.
     AL = 2.      # leaf area (m2)
@@ -146,10 +146,12 @@ if __name__ == "__main__":
     gmin = 10.   # mmol m-2 s-1
     Cl = 10000.  # Leaf capacitance (mmol MPa-1) (total plant)
     Cs = 120000. # Stem capacitance (mmol MPa-1)
+    g1 = 4.0
 
-    F = CanopySpace()
+    F = CanopySpace(g1=g1)
     D = Desica(psi_stem0=psi_stem0, AL=AL, p50=p50, psi_f=psi_f, gmin=gmin,
-               Cl=Cl, Cs=Cs, F=F, nruns=1, stop_dead=True, met_timestep=60.)
+               Cl=Cl, Cs=Cs, F=F, g1=g1, nruns=1, stop_dead=True,
+               met_timestep=60.)
     out = D.main(met)
 
     make_plot(out, time_step)

@@ -29,7 +29,7 @@ from photosynthesis import FarquharC3
 class Desica(object):
 
     def __init__(self, plc_dead=88.,soil_depth=1.0, ground_area=1.0,
-                 met_timestep=30., sf=8., g1=10., Cs=100000., b=6.,
+                 met_timestep=30., sf=8., g1=4., Cs=100000., b=6.,
                  Cl=10000., kp_sat=3., p50=-4., psi_f=-2., s50=30., gmin=10,
                  psi_leaf0=-1., psi_stem0=-0.5, theta_sat=0.5, sw0=0.5, AL=2.5,
                  psie=-0.8*1E-03, Ksat=20., Lv=10000., F=None, keep_wet=False,
@@ -45,6 +45,7 @@ class Desica(object):
         self.met_timestep = met_timestep
         self.sf = sf
         self.g1 = g1
+        print(self.g1)
         self.Cs = Cs
         self.Cl = Cl
         self.kp_sat = kp_sat
@@ -295,7 +296,7 @@ class CanopySpace(object):
     def __init__(self, g0=0.001, gamma=0.0, g1=4.0, theta_J=0.85, Rd25=0.92,
                  Q10=1.92, Vcmax25=50, Jmax25=100., Eav=82620.87,
                  deltaSv=645.1013, Eaj=39676.89, deltaSj=641.3615):
-
+        print(g1)
         self.deg2kelvin = 273.15
         self.F = FarquharC3(peaked_Jmax=True, peaked_Vcmax=False,
                             model_Q10=True, gs_model="user_defined",
@@ -410,9 +411,10 @@ if __name__ == "__main__":
     Cl = 10000.  # Leaf capacitance (mmol MPa-1) (total plant)
     Cs = 120000. # Stem capacitance (mmol MPa-1)
 
-    F = CanopySpace()
+    
+    F = CanopySpace(g1=g1)
     D = Desica(psi_stem0=psi_stem0, AL=AL, p50=p50, psi_f=psi_f, gmin=gmin,
-               Cl=Cl, Cs=Cs, F=F, nruns=3, stop_dead=True)
+               Cl=Cl, Cs=Cs, F=F, g1=g1, nruns=3, stop_dead=True)
     out = D.main(met)
 
     make_plot(out, time_step)
