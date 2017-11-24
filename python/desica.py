@@ -112,8 +112,8 @@ class Desica(object):
 
     def run_timestep(self, i, met, out):
 
-        # Plant hydraulic conductance
-        # Note how it depends on previous timestep stem water potential.
+        # Plant hydraulic conductance. NB. depends on stem water potential
+        # from the previous timestep.
         out.kp[i] = self.kp_sat * self.fsig_hydr(out.psi_stem[i-1])
 
         # from soil to stem pool
