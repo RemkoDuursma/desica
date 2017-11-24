@@ -75,10 +75,13 @@ class Desica(object):
                 out = self.run_timestep(i, met, out2)
 
             if self.stop_dead:
-                plc = 100.0 * (1.0 - out.kp[i] / self.kpsat)
+                plc = self.calc_plc(out.kp[i])
                 if plc > self.plc_dead:
                     break
 
+        #out["plc"] = self.calc_plc(out.kp)
+        #out["Eplant"] = self.AL * out.Eleaf
+        #out["t"] = np.arange(1, n+1)
 
     def initial_model(self):
         n = len(met)
@@ -96,7 +99,7 @@ class Desica(object):
         return n, out
 
     def setup_out_df(self):
-        dummy = np.zeros(len(met))
+        dummy = np.ones(len(met)) * np.nan
         out = pd.DataFrame({'Eleaf':dummy, 'psil':dummy, 'psist':dummy,
                             'psis':dummy, 'sw':dummy, 'ks':dummy, 'kp':dummy,
                             'Jsl':dummy, 'Jrs':dummy, 'krst':dummy,
@@ -232,6 +235,9 @@ class Desica(object):
         sw = min(1.0, sw_prev + water_in / (self.soil_volume * 1E03))
 
         return sw
+
+    def calc_plc(self, kp):
+        return 100.0 * (1.0 - kp / self.kpsat)
 
 
 if __name__ == "__main__":
