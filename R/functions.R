@@ -48,7 +48,6 @@ desica <- function(met=NULL,
 
   # Initial conditions
   na <- rep(NA, nrow(met))
-
   out <- data.frame(Eleaf=na,psil=na,psist=na,psis=na,sw=na,
                     ks=na,kp=na,Jsl=na,Jrs=na,krst=na,kstl=na)
 
@@ -97,8 +96,6 @@ desica <- function(met=NULL,
 
   d <- cbind(met, out)
   d$plc <- 100 * (1 - d$kp / kpsat)
-  print(d$plc)
-  stop()
   d$Eplant <- AL * out$Eleaf
   d$t <- 1:nrow(d)
 
