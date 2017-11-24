@@ -21,7 +21,7 @@ class Desica(object):
 
     def __init__(self, plc_dead=88.,soil_depth=1.0, ground_area=1.0,
                  met_timestep=15., Ca=400., sf=8., g1=10., Cs=100000.,
-                 Cl=10000., kpsat=3., p50=-4., psiv=-2., s50=30., gmin=10,
+                 Cl=10000., kp_sat=3., p50=-4., psiv=-2., s50=30., gmin=10,
                  psi_leaf0=-1., psi_stem0=-0.5, theta_sat=0.5,sw0=0.5, AL=2.5, b=6.,
                  psie=-0.8*1E-03, Ksat=20., Lv=10000., F=None, keep_wet=False,
                  stop_dead=True, run_twice=True):
@@ -39,7 +39,7 @@ class Desica(object):
         self.g1 = g1
         self.Cs = Cs
         self.Cl = Cl
-        self.kpsat = kpsat
+        self.kp_sat = kp_sat
         self.p50 = p50
         self.psiv = psiv
         self.s50 = s50
@@ -117,7 +117,7 @@ class Desica(object):
 
         # Plant hydraulic conductance
         # Note how it depends on previous timestep stem water potential.
-        out.kp[i] = self.kpsat * self.fsig_hydr(out.psi_stem[i-1])
+        out.kp[i] = self.kp_sat * self.fsig_hydr(out.psi_stem[i-1])
 
         # from soil to stem pool
         out.krst[i] = 1.0 / (1.0 / out.ks[i-1] + 1.0 / (2.0 * out.kp[i]))
@@ -244,7 +244,7 @@ class Desica(object):
         return sw
 
     def calc_plc(self, kp):
-        return 100.0 * (1.0 - kp / self.kpsat)
+        return 100.0 * (1.0 - kp / self.kp_sat)
 
     def fsig_tuzet(self, psi_leaf, psiv, sf):
         return (1.0 + np.exp(sf * psiv)) / (1.0 + np.exp(sf * (psiv - psi_leaf)))
