@@ -269,11 +269,11 @@ class Desica(object):
     def calc_plc(self, kp):
         return 100.0 * (1.0 - kp / self.kp_sat)
 
-    def fsig_tuzet(self, psi_leaf,):
+    def fsig_tuzet(self, psi_leaf):
         """ Empirical logistic function to describe the sensitivity of stomata
         to leaf water potential. Function assumes that stomata are insensitive
         to LWP at values close to zero and that stomata rapidly close with
-        decreasing LWP. 
+        decreasing LWP.
 
         Reference:
         ----------
