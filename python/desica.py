@@ -67,7 +67,7 @@ class Desica(object):
 
     def main(self, met=None):
 
-        (n, out) = self.initial_model()
+        (n, out) = self.initial_model(met)
 
         for i in range(1, n):
 
@@ -102,7 +102,7 @@ class Desica(object):
 
         return (out)
 
-    def initial_model(self):
+    def initial_model(self, met):
         n = len(met)
 
         out = self.setup_out_df()
