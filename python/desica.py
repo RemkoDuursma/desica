@@ -105,7 +105,7 @@ class Desica(object):
     def initial_model(self, met):
         n = len(met)
 
-        out = self.setup_out_df()
+        out = self.setup_out_df(met)
         out.psi_leaf[0] = self.psi_leaf0
         out.psi_stem[0] = self.psi_stem0
         out.sw[0] = self.sw0
