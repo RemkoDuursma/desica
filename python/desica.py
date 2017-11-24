@@ -313,7 +313,6 @@ def make_plot(out, timestep=15):
     elif timestep == 60:
         ndays = out.t / 96 * 4
 
-    print(ndays)
     fig = plt.figure(figsize=(9,6))
     fig.subplots_adjust(hspace=0.3)
     fig.subplots_adjust(wspace=0.2)
@@ -367,7 +366,7 @@ if __name__ == "__main__":
     F = CanopySpace()
 
     D = Desica(psi_stem0=psi_stem0, AL=AL, p50=p50, psiv=psiv, gmin=gmin, Cl=Cl,
-               Cs=Cs, F=F, nruns=2, stop_dead=True)
+               Cs=Cs, F=F, nruns=3, stop_dead=True)
     out = D.main(met)
 
     make_plot(out, time_step)
