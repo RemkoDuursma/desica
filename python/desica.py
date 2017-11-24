@@ -22,7 +22,7 @@ class Desica(object):
     def __init__(self, plc_dead=88.,soil_depth=1.0, ground_area=1.0,
                  met_timestep=15., Ca=400., sf=8., g1=10., Cs=100000.,
                  Cl=10000., kpsat=3., p50=-4., psiv=-2., s50=30., gmin=10,
-                 psil0=-1., psist0=-0.5, theta_sat=0.5,sw0=0.5, AL=2.5, b=6.,
+                 psi_leaf0=-1., psi_stem0=-0.5, theta_sat=0.5,sw0=0.5, AL=2.5, b=6.,
                  psie=-0.8*1E-03, Ksat=20., Lv=10000., F=None, keep_wet=False,
                  stop_dead=True, run_twice=True):
 
@@ -44,8 +44,8 @@ class Desica(object):
         self.psiv = psiv
         self.s50 = s50
         self.gmin = gmin
-        self.psil0 = psil0
-        self.psist0 =psist0
+        self.psi_leaf0 = psi_leaf0
+        self.psi_stem0 =psi_stem0
         self.theta_sat =theta_sat
         self.sw0 = sw0
         self.AL = AL
@@ -73,8 +73,8 @@ class Desica(object):
             # keeping everything else the same
             if self.run_twice:
                 out2 = out
-                out2.psil[i-1] = out.psil[i]
-                out2.psist[i-1] = out.psist[i]
+                out2.psi_leaf[i-1] = out.psi_leaf[i]
+                out2.psi_stem[i-1] = out.psi_stem[i]
                 out = self.run_timestep(i, met, out2)
 
             if self.stop_dead:
@@ -93,21 +93,21 @@ class Desica(object):
         n = len(met)
 
         out = self.setup_out_df()
-        out.psil[0] = self.psil0
-        out.psist[0] = self.psist0
+        out.psi_leaf[0] = self.psi_leaf0
+        out.psi_stem[0] = self.psi_stem0
         out.sw[0] = self.sw0
-        out.psis[0] = self.calc_swp(self.sw0)
+        out.psi_soil[0] = self.calc_swp(self.sw0)
         out.Eleaf[0] = 0.0
 
         # soil-to-root conductance
-        out.ks[0] = self.calc_ksoil(out.psis[0])
+        out.ks[0] = self.calc_ksoil(out.psi_soil[0])
 
         return n, out
 
     def setup_out_df(self):
         dummy = np.ones(len(met)) * np.nan
-        out = pd.DataFrame({'Eleaf':dummy, 'psil':dummy, 'psist':dummy,
-                            'psis':dummy, 'sw':dummy, 'ks':dummy, 'kp':dummy,
+        out = pd.DataFrame({'Eleaf':dummy, 'psi_leaf':dummy, 'psi_stem':dummy,
+                            'psi_soil':dummy, 'sw':dummy, 'ks':dummy, 'kp':dummy,
                             'Jsl':dummy, 'Jrs':dummy, 'krst':dummy,
                             'kstl':dummy})
 
@@ -117,7 +117,7 @@ class Desica(object):
 
         # Plant hydraulic conductance
         # Note how it depends on previous timestep stem water potential.
-        out.kp[i] = self.kpsat * self.fsig_hydr(out.psist[i-1])
+        out.kp[i] = self.kpsat * self.fsig_hydr(out.psi_stem[i-1])
 
         # from soil to stem pool
         out.krst[i] = 1.0 / (1.0 / out.ks[i-1] + 1.0 / (2.0 * out.kp[i]))
@@ -127,7 +127,7 @@ class Desica(object):
 
         Tleaf_K = met.tair[i] + self.deg2kelvin
 
-        mult = (self.g1 / self.Ca) * self.fsig_tuzet(out.psil[i-1],
+        mult = (self.g1 / self.Ca) * self.fsig_tuzet(out.psi_leaf[i-1],
                                                      self.psiv, self.sf)
 
         (An,
@@ -149,41 +149,41 @@ class Desica(object):
         # Leaf transpiration (mmol m-2 s-1)
         out.Eleaf[i] = (met.vpd[i] / 101.0) * gs
 
-        out.psil[i] = self.calc_xylem_water_potential(out.kstl[i],
-                                                      out.psist[i-1],
-                                                      out.psil[i-1],
+        out.psi_leaf[i] = self.calc_xylem_water_potential(out.kstl[i],
+                                                      out.psi_stem[i-1],
+                                                      out.psi_leaf[i-1],
                                                       out.Eleaf[i])
 
         # Flux from stem to leaf= change in leaf storage, plus transpiration
-        out.Jsl[i] = self.calc_flux_to_leaf(out.psil[i], out.psil[i-1],
+        out.Jsl[i] = self.calc_flux_to_leaf(out.psi_leaf[i], out.psi_leaf[i-1],
                                             out.Eleaf[i])
 
         # Update stem water potential
-        out.psist[i] = self.update_stem_wp(out.krst[i], out.psis[i-1],
-                                           out.Jsl[i], out.psist[i-1])
+        out.psi_stem[i] = self.update_stem_wp(out.krst[i], out.psi_soil[i-1],
+                                           out.Jsl[i], out.psi_stem[i-1])
 
         # flux from soil to stem = change in stem storage, plus Jrl
-        out.Jrs[i] = self.calc_flux_soil_to_stem(out.psist[i],
-                                                 out.psist[i-1], out.Jsl[i])
+        out.Jrs[i] = self.calc_flux_soil_to_stem(out.psi_stem[i],
+                                                 out.psi_stem[i-1], out.Jsl[i])
 
         out.sw[i] = self.update_sw_balance(met.precip[i], out.Jrs[i],
                                            out.sw[i-1])
 
         # Update soil water potential
-        out.psis[i] = self.calc_swp(out.sw[i])
+        out.psi_soil[i] = self.calc_swp(out.sw[i])
 
         # Update soil-to-root hydraulic conductance
-        out.ks[i] = self.calc_ksoil(out.psis[i])
+        out.ks[i] = self.calc_ksoil(out.psi_soil[i])
 
         return out
 
     def calc_swp(self, sw):
         return self.psie * (sw / self.theta_sat)**-self.b
 
-    def calc_ksoil(self, psis):
+    def calc_ksoil(self, psi_soil):
         rroot = 1E-06
-        Ks = self.Ksat * (self.psie / psis)**(2. + 3. / self.b)
-        if psis == 0.0:
+        Ks = self.Ksat * (self.psie / psi_soil)**(2. + 3. / self.b)
+        if psi_soil == 0.0:
             Ks = self.Ksat
 
         rcyl = 1.0 / np.sqrt(np.pi * self.Lv)
@@ -205,31 +205,31 @@ class Desica(object):
 
         return (relk)
 
-    def calc_xylem_water_potential(self, kstl, psist_prev, psil_prev, Eleaf):
+    def calc_xylem_water_potential(self, kstl, psi_stem_prev, psi_leaf_prev, Eleaf):
         # Xu method.
-        # Can write the dynamic equation as: dPsil_dt = b + a*psil
+        # Can write the dynamic equation as: dpsi_leaf_dt = b + a*psi_leaf
         # Then it follows (Xu et al. 2016, Appendix, and Code).
-        bp = (self.AL * 2.0 * kstl * psist_prev - self.AL * Eleaf) / self.Cl
+        bp = (self.AL * 2.0 * kstl * psi_stem_prev - self.AL * Eleaf) / self.Cl
         ap = -(self.AL * 2.0 * kstl / self.Cl)
-        psil = ((ap * psil_prev + bp) * np.exp(ap * self.timestep_sec) - bp)/ap
+        psi_leaf = ((ap * psi_leaf_prev + bp) * np.exp(ap * self.timestep_sec) - bp)/ap
 
-        return psil
+        return psi_leaf
 
-    def calc_flux_to_leaf(self, psil, psil_prev, Eleaf):
+    def calc_flux_to_leaf(self, psi_leaf, psi_leaf_prev, Eleaf):
         # Flux from stem to leaf = change in leaf storage, plus transpiration
-        Jsl = (psil - psil_prev) * self.Cl / self.timestep_sec + self.AL * Eleaf
+        Jsl = (psi_leaf - psi_leaf_prev) * self.Cl / self.timestep_sec + self.AL * Eleaf
         return Jsl
 
-    def update_stem_wp(self, krst, psis_prev, Jsl, psist_prev):
+    def update_stem_wp(self, krst, psi_soil_prev, Jsl, psi_stem_prev):
         # from Xu et al. 2016.
-        bp = (self.AL * 2.0 * krst * psis_prev - Jsl) / self.Cs
+        bp = (self.AL * 2.0 * krst * psi_soil_prev - Jsl) / self.Cs
         ap = -(self.AL * 2.0 * krst / self.Cs)
-        psist = ((ap * psist_prev + bp) * np.exp(ap * self.timestep_sec)-bp)/ap
+        psi_stem = ((ap * psi_stem_prev + bp) * np.exp(ap * self.timestep_sec)-bp)/ap
 
-        return psist
+        return psi_stem
 
-    def calc_flux_soil_to_stem(self, psist, psist_prev, Jsl):
-        return (psist - psist_prev) * self.Cs / self.timestep_sec + Jsl
+    def calc_flux_soil_to_stem(self, psi_stem, psi_stem_prev, Jsl):
+        return (psi_stem - psi_stem_prev) * self.Cs / self.timestep_sec + Jsl
 
     def update_sw_balance(self, precip, Jrs, sw_prev):
 
@@ -246,8 +246,8 @@ class Desica(object):
     def calc_plc(self, kp):
         return 100.0 * (1.0 - kp / self.kpsat)
 
-    def fsig_tuzet(self, psil, psiv, sf):
-        return (1.0 + np.exp(sf * psiv)) / (1.0 + np.exp(sf * (psiv - psil)))
+    def fsig_tuzet(self, psi_leaf, psiv, sf):
+        return (1.0 + np.exp(sf * psiv)) / (1.0 + np.exp(sf * (psiv - psi_leaf)))
 
 def make_plot(out):
 
@@ -266,9 +266,9 @@ def make_plot(out):
     ax1 = fig.add_subplot(111)
     ax2 = ax1.twinx()
 
-    ln1 = ax1.plot(out.t / 96, out.psil, "k-", label="Leaf")
-    ln2 = ax1.plot(out.t / 96, out.psist, "r-", label="Stem")
-    ln3 = ax1.plot(out.t / 96, out.psis, "b-", label="Soil")
+    ln1 = ax1.plot(out.t / 96, out.psi_leaf, "k-", label="Leaf")
+    ln2 = ax1.plot(out.t / 96, out.psi_stem, "r-", label="Stem")
+    ln3 = ax1.plot(out.t / 96, out.psi_soil, "b-", label="Soil")
 
     ln4 = ax2.plot(out.t / 96, out.plc, ls='-', color="darkgrey", label="PLC")
 
@@ -278,7 +278,6 @@ def make_plot(out):
     ax1.legend(lns, labs, loc=(0.5,0.05), ncol=2)
 
     ax2.set_ylabel(r'PLC (%)')
-
 
     ax1.set_xlabel("Time (days)")
     ax1.set_ylabel("Water potential (MPa)")
@@ -291,7 +290,7 @@ if __name__ == "__main__":
 
     met = generate_met_data(Tmin=10, RH=30, ndays=200)
 
-    psist0 = 0.
+    psi_stem0 = 0.
     AL = 6.      # leaf area (m2)
     p50 = -4.    # MPa
     psiv = -3.   # MPa (for Tuzet model)
@@ -318,7 +317,7 @@ if __name__ == "__main__":
                    gs_model="user_defined", gamma=gamma, g0=g0,
                    g1=g1, theta_J=theta_J)
 
-    D = Desica(psist0=psist0, AL=AL, p50=p50, psiv=psiv, gmin=gmin, Cl=Cl,
+    D = Desica(psi_stem0=psi_stem0, AL=AL, p50=p50, psiv=psiv, gmin=gmin, Cl=Cl,
                Cs=Cs, F=F, run_twice=True, stop_dead=True)
     out = D.main(met)
 
