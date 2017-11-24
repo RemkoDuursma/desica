@@ -117,7 +117,7 @@ class Desica(object):
 
         return n, out
 
-    def setup_out_df(self):
+    def setup_out_df(self, met):
         dummy = np.ones(len(met)) * np.nan
         out = pd.DataFrame({'Eleaf':dummy, 'psi_leaf':dummy, 'psi_stem':dummy,
                             'psi_soil':dummy, 'sw':dummy, 'ks':dummy,
