@@ -259,7 +259,7 @@ def make_plot(out):
     plt.rcParams['font.sans-serif'] = "Helvetica"
     plt.rcParams['axes.labelsize'] = 12
     plt.rcParams['font.size'] = 12
-    plt.rcParams['legend.fontsize'] = 12
+    plt.rcParams['legend.fontsize'] = 10
     plt.rcParams['xtick.labelsize'] = 12
     plt.rcParams['ytick.labelsize'] = 12
 
@@ -270,15 +270,15 @@ def make_plot(out):
     ln2 = ax1.plot(out.t / 96, out.psist, "r-", label="Stem")
     ln3 = ax1.plot(out.t / 96, out.psis, "b-", label="Soil")
 
-    ln4 = ax2.plot(out.t / 96, out.plc, '-g', label="PLC")
+    ln4 = ax2.plot(out.t / 96, out.plc, ls='-', color="darkgrey", label="PLC")
 
     # added these three lines
     lns = ln1 + ln2 + ln3 + ln4
     labs = [l.get_label() for l in lns]
-    ax1.legend(lns, labs, loc="best", ncol=2)
+    ax1.legend(lns, labs, loc=(0.5,0.05), ncol=2)
 
     ax2.set_ylabel(r'PLC (%)')
-    ax2.tick_params('y', colors='r')
+
 
     ax1.set_xlabel("Time (days)")
     ax1.set_ylabel("Water potential (MPa)")
