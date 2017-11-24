@@ -47,9 +47,11 @@ def generate_met_data(PPFDmax=2000, RH=30, Tmax=30, Tmin=10, day_length=12,
     tair = np.tile(ta, new_size)
     par = np.tile(p, new_size)
     precip = np.zeros(len(par))
-
+    Ca = np.ones(len(par)) * 400.0 # umol mol-1
+    press = np.ones(len(par)) * 101.0 # kPa
     met = pd.DataFrame({'day':day, 'par':par, 'tair':tair,
-                        'vpd':vpd, 'precip':precip})
+                        'vpd':vpd, 'precip':precip, 'press':press,
+                        'Ca':Ca})
 
     return met
 
