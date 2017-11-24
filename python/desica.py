@@ -150,9 +150,9 @@ class Desica(object):
         out.Eleaf[i] = (met.vpd[i] / 101.0) * gs
 
         out.psi_leaf[i] = self.calc_xylem_water_potential(out.kstl[i],
-                                                      out.psi_stem[i-1],
-                                                      out.psi_leaf[i-1],
-                                                      out.Eleaf[i])
+                                                          out.psi_stem[i-1],
+                                                          out.psi_leaf[i-1],
+                                                          out.Eleaf[i])
 
         # Flux from stem to leaf= change in leaf storage, plus transpiration
         out.Jsl[i] = self.calc_flux_to_leaf(out.psi_leaf[i], out.psi_leaf[i-1],
@@ -160,7 +160,7 @@ class Desica(object):
 
         # Update stem water potential
         out.psi_stem[i] = self.update_stem_wp(out.krst[i], out.psi_soil[i-1],
-                                           out.Jsl[i], out.psi_stem[i-1])
+                                              out.Jsl[i], out.psi_stem[i-1])
 
         # flux from soil to stem = change in stem storage, plus Jrl
         out.Jrs[i] = self.calc_flux_soil_to_stem(out.psi_stem[i],
@@ -174,7 +174,7 @@ class Desica(object):
 
         # Update soil-to-root hydraulic conductance
         out.ks[i] = self.calc_ksoil(out.psi_soil[i])
-        
+
         return out
 
     def calc_swp(self, sw):
@@ -211,20 +211,23 @@ class Desica(object):
         # Then it follows (Xu et al. 2016, Appendix, and Code).
         bp = (self.AL * 2.0 * kstl * psi_stem_prev - self.AL * Eleaf) / self.Cl
         ap = -(self.AL * 2.0 * kstl / self.Cl)
-        psi_leaf = ((ap * psi_leaf_prev + bp) * np.exp(ap * self.timestep_sec) - bp)/ap
+        psi_leaf = ((ap * psi_leaf_prev + bp) * \
+                    np.exp(ap * self.timestep_sec) - bp) / ap
 
         return psi_leaf
 
     def calc_flux_to_leaf(self, psi_leaf, psi_leaf_prev, Eleaf):
         # Flux from stem to leaf = change in leaf storage, plus transpiration
-        Jsl = (psi_leaf - psi_leaf_prev) * self.Cl / self.timestep_sec + self.AL * Eleaf
+        Jsl = (psi_leaf - psi_leaf_prev) * \
+                self.Cl / self.timestep_sec + self.AL * Eleaf
         return Jsl
 
     def update_stem_wp(self, krst, psi_soil_prev, Jsl, psi_stem_prev):
         # from Xu et al. 2016.
         bp = (self.AL * 2.0 * krst * psi_soil_prev - Jsl) / self.Cs
         ap = -(self.AL * 2.0 * krst / self.Cs)
-        psi_stem = ((ap * psi_stem_prev + bp) * np.exp(ap * self.timestep_sec)-bp)/ap
+        psi_stem = ((ap * psi_stem_prev + bp) * \
+                    np.exp(ap * self.timestep_sec)-bp) / ap
 
         return psi_stem
 
@@ -240,7 +243,6 @@ class Desica(object):
 
         # soil water content (sw) in units m3 m-3
         sw = min(1.0, sw_prev + water_in / (self.soil_volume * 1E03))
-
         return sw
 
     def calc_plc(self, kp):
