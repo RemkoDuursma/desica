@@ -30,7 +30,7 @@ class Desica(object):
 
     def __init__(self, plc_dead=88.,soil_depth=1.0, ground_area=1.0,
                  met_timestep=30., sf=8., g1=10., Cs=100000., b=6.,
-                 Cl=10000., kp_sat=3., p50=-4., psiv=-2., s50=30., gmin=10,
+                 Cl=10000., kp_sat=3., p50=-4., psi_f=-2., s50=30., gmin=10,
                  psi_leaf0=-1., psi_stem0=-0.5, theta_sat=0.5, sw0=0.5, AL=2.5,
                  psie=-0.8*1E-03, Ksat=20., Lv=10000., F=None, keep_wet=False,
                  stop_dead=True, nruns=1):
@@ -49,7 +49,7 @@ class Desica(object):
         self.Cl = Cl
         self.kp_sat = kp_sat
         self.p50 = p50
-        self.psiv = psiv
+        self.psi_f = psi_f
         self.s50 = s50
         self.gmin = gmin
         self.psi_leaf0 = psi_leaf0 # initial leaf water potential (MPa)
@@ -130,8 +130,7 @@ class Desica(object):
 
         self.calc_conductances(out, i)
 
-        mult = (self.g1 / met.Ca[i]) * self.fsig_tuzet(out.psi_leaf[i-1],
-                                                       self.psiv, self.sf)
+        mult = (self.g1 / met.Ca[i]) * self.fsig_tuzet(out.psi_leaf[i-1])
 
         # Calculate photosynthesis and stomatal conductance
         gsw = self.F.canopy(met.Ca[i], met.tair[i], met.par[i],
@@ -264,14 +263,31 @@ class Desica(object):
 
         # volumetric soil water content (m3 m-3)
         sw = min(1.0, sw_prev + water_in / (self.soil_volume * 1E03))
-        
+
         return sw
 
     def calc_plc(self, kp):
         return 100.0 * (1.0 - kp / self.kp_sat)
 
-    def fsig_tuzet(self, psi_leaf, psiv, sf):
-        return (1.0 + np.exp(sf * psiv)) / (1.0 + np.exp(sf * (psiv - psi_leaf)))
+    def fsig_tuzet(self, psi_leaf,):
+        """ Empirical logistic function to describe the sensitivity of stomata
+        to leaf water potential. Function assumes that stomata are insensitive
+        to LWP at values close to zero and that stomata rapidly close with
+        decreasing LWP. 
+
+        Reference:
+        ----------
+        * Tuzet et al. (2003) A coupled model of stomatal conductance,
+          photosynthesis and transpiration. Plant, Cell and Environment 26,
+          1097–1116
+
+        """
+        # psi_f is the reference potential
+        num = 1.0 + np.exp(self.sf * self.psi_f)
+        den = 1.0 + np.exp(self.sf * (self.psi_f - psi_leaf))
+
+        fw = num / den
+        return fw
 
 
 class CanopySpace(object):
@@ -366,14 +382,14 @@ if __name__ == "__main__":
     psi_stem0 = 0.
     AL = 6.      # leaf area (m2)
     p50 = -4.    # MPa
-    psiv = -3.   # MPa (for Tuzet model)
+    psi_f = -3.  # Reference potential (MPa) for Tuzet model
     gmin = 10.   # mmol m-2 s-1
     Cl = 10000.  # Leaf capacitance (mmol MPa-1) (total plant)
     Cs = 120000. # Stem capacitance (mmol MPa-1)
 
     F = CanopySpace()
-    D = Desica(psi_stem0=psi_stem0, AL=AL, p50=p50, psiv=psiv, gmin=gmin, Cl=Cl,
-               Cs=Cs, F=F, nruns=3, stop_dead=True)
+    D = Desica(psi_stem0=psi_stem0, AL=AL, p50=p50, psi_f=psi_f, gmin=gmin,
+               Cl=Cl, Cs=Cs, F=F, nruns=3, stop_dead=True)
     out = D.main(met)
 
     make_plot(out, time_step)
