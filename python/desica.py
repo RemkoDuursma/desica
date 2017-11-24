@@ -71,6 +71,45 @@ class Desica(object):
             # from soil to stem pool
             out.krst[i] = 1.0 / (1.0 / out.ks[i-1] + 1.0 / (2.0 * out.kp[i]))
 
+            # from stem pool to leaf
+            out.kstl[i] = 2.0 * out.kp[i]
+
+            # call photosynthesis ... add coupled code.
+            # Use this for now ...
+            Ci = 400.
+            ALEAF = -0.4407474
+            GS = 0.001
+            ELEAF = 0.01102896
+            Ac = 7.586432
+            Aj = 0.0
+            Ap = 3000.
+            Rd = 0.4407474
+            VPD = 1.102896
+            Tleaf = 13.71879
+            Ca = 400.
+            Cc = 400.
+            PPFD = 0.0
+            Patm = 100.
+
+            # Don't add gmin, instead use it as bottom value.
+            gs = max(self.gmin, 1000. * GS)
+
+            # Leaf transpiration (mmol m-2 s-1)
+            out.Eleaf[i] = (met.vpd[i] / 101.0) * gs
+
+            out.psil[i] = self.calc_xylem_water_potential(out.kstl[i],
+                                                          out.psist[i-1],
+                                                          out.psil[i-1],
+                                                          out.Eleaf[i])
+
+            # Flux from stem to leaf= change in leaf storage, plus transpiration
+            out.Jsl[i] = self.calc_flux_to_leaf(out.psil[i], out.psil[i-1],
+                                                out.Eleaf[i])
+
+            out.psist[i] = self.update_stem_wp(out.krst[i], out.psis[i-1],
+                                               out.Jsl[i], out.psist[i-1])
+            print(out.psist[i])
+            sys.exit()
 
     def initial_model(self):
         n = len(met)
@@ -122,6 +161,30 @@ class Desica(object):
         relk = (1. - X / 100.)**p
 
         return (relk)
+
+    def calc_xylem_water_potential(self, kstl, psist_prev, psil_prev, Eleaf):
+        # Xu method.
+        # Can write the dynamic equation as: dPsil_dt = b + a*psil
+        # Then it follows (Xu et al. 2016, Appendix, and Code).
+        bp = (self.AL * 2.0 * kstl * psist_prev - self.AL * Eleaf) / self.Cl
+        ap = -(self.AL * 2.0 * kstl / self.Cl)
+        psil = ((ap * psil_prev + bp) * np.exp(ap * self.timestep_sec) - bp)/ap
+
+        return psil
+
+    def calc_flux_to_leaf(self, psil, psil_prev, Eleaf):
+        # Flux from stem to leaf = change in leaf storage, plus transpiration
+        Jsl = (psil - psil_prev) * self.Cl / self.timestep_sec + self.AL * Eleaf
+        return Jsl
+
+    def update_stem_wp(self, krst, psis_prev, Jsl, psist_prev):
+        # from Xu et al. 2016.
+        bp = (self.AL * 2.0 * krst * psis_prev - Jsl) / self.Cs
+        ap = -(self.AL * 2.0 * krst / self.Cs)
+        psist = ((ap * psist_prev + bp) * np.exp(ap * self.timestep_sec)-bp)/ap
+
+        return psist
+
 
 if __name__ == "__main__":
 
