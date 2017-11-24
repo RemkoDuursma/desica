@@ -29,16 +29,16 @@ from photosynthesis import FarquharC3
 class Desica(object):
 
     def __init__(self, plc_dead=88.,soil_depth=1.0, ground_area=1.0,
-                 met_timestep=15., sf=8., g1=10., Cs=100000., b=6.,
+                 met_timestep=30., sf=8., g1=10., Cs=100000., b=6.,
                  Cl=10000., kp_sat=3., p50=-4., psiv=-2., s50=30., gmin=10,
                  psi_leaf0=-1., psi_stem0=-0.5, theta_sat=0.5,sw0=0.5, AL=2.5,
                  psie=-0.8*1E-03, Ksat=20., Lv=10000., F=None, keep_wet=False,
-                 stop_dead=True, run_twice=True):
+                 stop_dead=True, nruns=1):
 
         self.keep_wet = keep_wet
         self.stop_dead = stop_dead
         self.plc_dead = plc_dead
-        self.run_twice = run_twice
+        self.nruns = nruns
         self.soil_depth = soil_depth
         self.ground_area = ground_area
         self.soil_volume = self.ground_area * self.soil_depth
@@ -63,10 +63,7 @@ class Desica(object):
         self.Ksat = Ksat
         self.Lv = Lv
         self.F = F
-        self.timestep_sec = 60. * self.met_timestep
-        if self.run_twice:
-            self.timestep_sec /= 2.
-
+        self.timestep_sec = 60. * self.met_timestep / self.nruns
 
     def main(self, met=None):
 
@@ -78,11 +75,19 @@ class Desica(object):
 
             # save solutions, use as input for another run,
             # keeping everything else the same
-            if self.run_twice:
-                out2 = out
-                out2.psi_leaf[i-1] = out.psi_leaf[i]
-                out2.psi_stem[i-1] = out.psi_stem[i]
-                out = self.run_timestep(i, met, out2)
+            #if self.run_twice:
+            #    out2 = out
+            #    out2.psi_leaf[i-1] = out.psi_leaf[i]
+            #    out2.psi_stem[i-1] = out.psi_stem[i]
+            #    out = self.run_timestep(i, met, out2)
+
+            # save solutions, use as input for another run,
+            # keeping everything else the same
+            for j in range(1, self.nruns):
+                out_temp = out
+                out_temp.psi_leaf[i-1] = out.psi_leaf[i]
+                out_temp.psi_stem[i-1] = out.psi_stem[i]
+                out = self.run_timestep(i, met, out_temp)
 
             if self.stop_dead:
                 plc = self.calc_plc(out.kp[i])
@@ -299,8 +304,16 @@ class CanopySpace(object):
 
         return (gsw)
 
-def make_plot(out):
+def make_plot(out, timestep=15):
 
+    if timestep == 15:
+        ndays = out.t / 96
+    elif timestep == 30:
+        ndays = out.t / 96 * 2
+    elif timestep == 60:
+        ndays = out.t / 96 * 4
+
+    print(ndays)
     fig = plt.figure(figsize=(9,6))
     fig.subplots_adjust(hspace=0.3)
     fig.subplots_adjust(wspace=0.2)
@@ -316,11 +329,12 @@ def make_plot(out):
     ax1 = fig.add_subplot(111)
     ax2 = ax1.twinx()
 
-    ln1 = ax1.plot(out.t / 96, out.psi_leaf, "k-", label="Leaf")
-    ln2 = ax1.plot(out.t / 96, out.psi_stem, "r-", label="Stem")
-    ln3 = ax1.plot(out.t / 96, out.psi_soil, "b-", label="Soil")
+    ln1 = ax1.plot(ndays, out.psi_leaf, "k-", label="Leaf")
+    ln2 = ax1.plot(ndays, out.psi_stem, "r-", label="Stem")
+    ln3 = ax1.plot(ndays, out.psi_soil, "b-", label="Soil")
 
-    ln4 = ax2.plot(out.t / 96, out.plc, ls='-', color="darkgrey", label="PLC")
+    ln4 = ax2.plot(ndays, out.plc, ls='-', color="darkgrey",
+                   label="PLC")
 
     # added these three lines
     lns = ln1 + ln2 + ln3 + ln4
@@ -338,7 +352,9 @@ def make_plot(out):
 
 if __name__ == "__main__":
 
-    met = generate_met_data(Tmin=10, RH=30, ndays=200)
+    time_step = 30
+
+    met = generate_met_data(Tmin=10, RH=30, ndays=200, time_step=time_step)
 
     psi_stem0 = 0.
     AL = 6.      # leaf area (m2)
@@ -351,7 +367,7 @@ if __name__ == "__main__":
     F = CanopySpace()
 
     D = Desica(psi_stem0=psi_stem0, AL=AL, p50=p50, psiv=psiv, gmin=gmin, Cl=Cl,
-               Cs=Cs, F=F, run_twice=True, stop_dead=True)
+               Cs=Cs, F=F, nruns=2, stop_dead=True)
     out = D.main(met)
 
-    make_plot(out)
+    make_plot(out, time_step)
