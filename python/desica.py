@@ -371,6 +371,29 @@ def make_plot(out, timestep=15):
     #ax1.legend(numpoints=1, loc="best")
     fig.savefig("test_plot.pdf", bbox_inches='tight', pad_inches=0.1)
 
+def plot_swp_sw(out):
+
+    fig = plt.figure(figsize=(9,6))
+    fig.subplots_adjust(hspace=0.3)
+    fig.subplots_adjust(wspace=0.2)
+    plt.rcParams['text.usetex'] = False
+    plt.rcParams['font.family'] = "sans-serif"
+    plt.rcParams['font.sans-serif'] = "Helvetica"
+    plt.rcParams['axes.labelsize'] = 12
+    plt.rcParams['font.size'] = 12
+    plt.rcParams['legend.fontsize'] = 10
+    plt.rcParams['xtick.labelsize'] = 12
+    plt.rcParams['ytick.labelsize'] = 12
+
+    ax1 = fig.add_subplot(111)
+
+    ax1.plot(out.sw, out.psi_soil, "b.", label="Soil")
+
+    ax1.set_xlabel("SW (m3 m-3)")
+    ax1.set_ylabel("Soil Water potential (MPa)")
+    #ax1.legend(numpoints=1, loc="best")
+    fig.savefig("sw_swp.pdf", bbox_inches='tight', pad_inches=0.1)
+
 
 
 if __name__ == "__main__":
@@ -393,3 +416,4 @@ if __name__ == "__main__":
     out = D.main(met)
 
     make_plot(out, time_step)
+    plot_swp_sw(out)
