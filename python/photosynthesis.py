@@ -138,9 +138,9 @@ class FarquharC3(object):
         self.GSC_2_GSW = 1.57
         self.GSW_2_GSC = 1.0 / self.GSC_2_GSW
 
-    def calc_photosynthesis(self, Cs=None, Tleaf=None, Par=None, Jmax=None,
-                            Vcmax=None, Jmax25=None, Vcmax25=None, Rd=None,
-                            Rd25=None, Q10=None, Eaj=None, Eav=None,
+    def calc_photosynthesis(self, Cs=None, Tleaf=None, Par=None,
+                            Jmax=None, Vcmax=None, Jmax25=None, Vcmax25=None,
+                            Rd=None, Rd25=None, Q10=None, Eaj=None, Eav=None,
                             deltaSj=None, deltaSv=None, Hdv=200000.0,
                             Hdj=200000.0, Ear=None, vpd=None, mult=None):
         """
@@ -231,6 +231,7 @@ class FarquharC3(object):
         # all measurements are calculated under saturated light!!
         else:
             J = Jmax
+        Vj = J / 4.0
 
         #Jmax = self.adj_for_low_temp(Jmax, Tleaf)
         #Vcmax = self.adj_for_low_temp(Vcmax, Tleaf)
@@ -257,67 +258,63 @@ class FarquharC3(object):
 
         elif self.gs_model == "user_defined":
             # Multiplier is user-defined.
+            g0 = self.g0 / self.GSC_2_GSW
             gs_over_a = mult / self.GSC_2_GSW
-            print(mult, gs_over_a)
-            sys.exit()
-
-        # Solution when Rubisco activity is limiting
-        A = g0 + gs_over_a * (Vcmax - Rd)
-        B = ((1.0 - Cs * gs_over_a) * (Vcmax - Rd) + g0 * (Km - Cs) -
-             gs_over_a * (Vcmax * gamma_star + Km * Rd))
-        C = (-(1.0 - Cs * gs_over_a) * (Vcmax * gamma_star + Km * Rd) -
-              (g0 * Km * Cs))
 
 
-        # intercellular CO2 concentration
-        Cic = self.quadratic(a=A, b=B, c=C, large=True)
+
+        if ( isclose(Par, 0.0) | isclose(Vj, 0.0) ):
+            Cic = Cs
+            Cij = Cs
+        else:
+            # Solution when Rubisco activity is limiting
+            A = g0 + gs_over_a * (Vcmax - Rd)
+            B = ((1.0 - Cs * gs_over_a) * (Vcmax - Rd) + g0 * (Km - Cs) -
+                 gs_over_a * (Vcmax * gamma_star + Km * Rd))
+            C = (-(1.0 - Cs * gs_over_a) * (Vcmax * gamma_star + Km * Rd) -
+                  (g0 * Km * Cs))
+
+            # intercellular CO2 concentration
+            Cic = self.quadratic(a=A, b=B, c=C, large=True)
+
+            # Solution when electron transport rate is limiting
+            A =  g0 + gs_over_a * (Vj - Rd)
+            B = ((1. - Cs * gs_over_a) * (Vj - Rd) + g0 * (2. * gamma_star - Cs) -
+                 gs_over_a * (Vj * gamma_star + 2. * gamma_star * Rd))
+            C = (-(1.0 - Cs * gs_over_a) * gamma_star * (Vj + 2.0 * Rd) -
+                   g0 * 2. * gamma_star * Cs)
+
+            # intercellular CO2 concentration
+            Cij = self.quadratic(a=A, b=B, c=C, large=True)
 
         if Cic <= 0.0 or Cic > Cs:
             Ac = 0.0
         else:
             Ac = self.assim(Cic, gamma_star, a1=Vcmax, a2=Km)
 
-
-        # Solution when electron transport rate is limiting
-        Vj = J / 4.0
-        A =  g0 + gs_over_a * (Vj - Rd)
-        B = ((1. - Cs * gs_over_a) * (Vj - Rd) + g0 * (2. * gamma_star - Cs) -
-             gs_over_a * (Vj * gamma_star + 2. * gamma_star * Rd))
-        C = (-(1.0 - Cs * gs_over_a) * gamma_star * (Vj + 2.0 * Rd) -
-               g0 * 2. * gamma_star * Cs)
-
-        # intercellular CO2 concentration
-        Cij = self.quadratic(a=A, b=B, c=C, large=True)
-
-        #print Cic, Cij
-        #sys.exit()
         Aj = self.assim(Cij, gamma_star, a1=Vj, a2=2.0*gamma_star)
-        # Below light compensation point?
-        if Aj - Rd < 1E-6:
+
+        # When below light-compensation points, assume Ci=Ca.
+        if Aj <= Rd + 1E-09:
             Cij = Cs
             Aj = self.assim(Cij, gamma_star, a1=Vj, a2=2.0*gamma_star)
+            if Aj < Ac:
+                Ci = Cij
+            else:
+                Ci = Cic
 
-        #print Cij/400., Cic/400., ci_over_ca
+        # Hyperbolic minimum.
+        Am = -self.quadratic(a=1.0 - 1E-04, b=Ac + Aj, c=Ac * Aj, large=True)
 
-        #arg = ((Ac + Aj - \
-        #        np.sqrt((Ac + Aj)**2 - 4.0 * self.theta_hyperbol * Ac * Aj)) /
-        #        (2.0 * self.theta_hyperbol))
-        ## By default we assume a everything under Ci<150 is Ac limited
-        #A = np.where(Ci < 150.0, Ac, arg)
+        # Net photosynthesis
+        An = Am - Rd
 
-        # net assimilation rates.
-        #An = A - Rd
-        #Acn = Ac - Rd
-        #Ajn = Aj - Rd
+        # Calculate conductance to CO2
+        gsc = max(g0, g0 + gs_over_a * An)
 
-        An = np.minimum(Ac, Aj) - Rd
-        Acn = Ac - Rd
-        Ajn = Aj - Rd
+        gsw = gsc * self.GSC_2_GSW
 
-        gsc = max(self.g0, self.g0 + gs_over_a * An)
-
-
-        return (An, Acn, Ajn, gsc)
+        return (An, gsc, gsw)
 
     def adj_for_low_temp(self, param, Tk, lower_bound=0.0, upper_bound=10.0):
         """
@@ -556,3 +553,6 @@ class FarquharC3(object):
                 root = (-b - np.sqrt(d)) / (2.0 * a)
 
         return root
+
+def isclose(a, b, rel_tol=1e-09, abs_tol=0.0):
+    return abs(a-b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)

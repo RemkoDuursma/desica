@@ -59,7 +59,7 @@ class Desica(object):
         self.timestep_sec = 60. * self.met_timestep
         if self.run_twice:
             self.timestep_sec /= 2.
-
+        self.Patm = 100.0
 
     def main(self, met=None):
 
@@ -82,10 +82,19 @@ class Desica(object):
                 if plc > self.plc_dead:
                     break
 
-        #out["plc"] = self.calc_plc(out.kp)
-        #out["Eplant"] = self.AL * out.Eleaf
-        #out["t"] = np.arange(1, n+1)
-
+        """
+        out["plc"] = self.calc_plc(out.kp)
+        out["Eplant"] = self.AL * out.Eleaf
+        out["t"] = np.arange(1, n+1)
+        plt.plot(out.t / 96, out.psil, "k-", label="Leaf")
+        plt.plot(out.t / 96, out.psist, "r-", label="Stem")
+        plt.plot(out.t / 96, out.psis, "b-", label="Soil")
+        plt.xlabel("Time (days)")
+        plt.ylabel("Water potential (MPa)")
+        plt.legend(numpoints=1, loc="best")
+        plt.ylim(-5,0)
+        plt.show()
+        """
     def initial_model(self):
         n = len(met)
 
@@ -126,39 +135,23 @@ class Desica(object):
 
         mult = (self.g1 / self.Ca) * self.fsig_tuzet(out.psil[i-1],
                                                      self.psiv, self.sf)
-        (An, Acn,
-         Ajn, gsc) = self.F.calc_photosynthesis(Cs=Cs, Tleaf=Tleaf_K,
+        (An, gsc, gsw) = self.F.calc_photosynthesis(Cs=self.Ca,
+                                                Tleaf=Tleaf_K,
                                                 Par=met.par[i], vpd=met.vpd[i],
                                                 Rd25=0.92, Q10=1.92, Vcmax25=50,
                                                 Jmax25=100., Eav=82620.87,
                                                 deltaSv=645.1013, Eaj=39676.89,
                                                 deltaSj=641.3615, mult=mult)
 
-        print(An)
-        sys.exit()
-
-        # call photosynthesis ... add coupled code.
-        # Use this for now ...
-        Ci = 400.
-        ALEAF = -0.4407474
-        GS = 0.001
-        ELEAF = 0.01102896
-        Ac = 7.586432
-        Aj = 0.0
-        Ap = 3000.
-        Rd = 0.4407474
-        VPD = 1.102896
-        Tleaf = 13.71879
-        Ca = 400.
-        Cc = 400.
-        PPFD = 0.0
-        Patm = 100.
+        # Transpiration rate assuming perfect coupling.
+        # Output units are mmol m-2 s-1
+        #Eleaf = 1000.0 * gsw * met.vpd[i] / self.Patm
 
         # Don't add gmin, instead use it as bottom value.
-        gs = max(self.gmin, 1000. * GS)
+        gs = max(self.gmin, 1000. * gsw)
 
         # Leaf transpiration (mmol m-2 s-1)
-        out.Eleaf[i] = (met.vpd[i] / 101.0) * gs
+        out.Eleaf[i] = (met.vpd[i] / 101.0) * gsw
 
         out.psil[i] = self.calc_xylem_water_potential(out.kstl[i],
                                                       out.psist[i-1],
@@ -186,6 +179,7 @@ class Desica(object):
         # Update soil-to-root hydraulic conductance
         out.ks[i] = self.calc_ksoil(out.psis[i])
 
+        print(i, out.psil[i])
         return out
 
     def calc_swp(self, sw):
