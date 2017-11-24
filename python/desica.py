@@ -122,20 +122,19 @@ class Desica(object):
         # from stem pool to leaf
         out.kstl[i] = 2.0 * out.kp[i]
 
-        Tleaf = met.tair[i] + self.deg2kelvin
-        print(met.tair[i], Tleaf)
+        Tleaf_K = met.tair[i] + self.deg2kelvin
+
+        (An, Acn,
+         Ajn, gsc) = self.F.calc_photosynthesis(Cs=Cs, Tleaf=Tleaf_K,
+                                                Par=met.par[i], vpd=met.vpd[i],
+                                                Rd25=0.92, Q10=1.92, Vcmax25=50,
+                                                Jmax25=100., Eav=82620.87,
+                                                deltaSv=645.1013, Eaj=39676.89,
+                                                deltaSj=641.3615)
+
+        print(An)
         sys.exit()
-        """
-        self.F.calc_photosynthesis(Cs=Cs, Tleaf=Tleaf_K, Par=par,
-                                              Jmax25=self.Jmax25,
-                                              Vcmax25=self.Vcmax25,
-                                              Q10=self.Q10, Eaj=self.Eaj,
-                                              Eav=self.Eav,
-                                              deltaSj=self.deltaSj,
-                                              deltaSv=self.deltaSv,
-                                              Rd25=self.Rd25, Hdv=self.Hdv,
-                                              Hdj=self.Hdj, vpd=dleaf)
-        """
+
         # call photosynthesis ... add coupled code.
         # Use this for now ...
         Ci = 400.
@@ -283,10 +282,10 @@ if __name__ == "__main__":
     gamma = 0.0
     g0 = 0.001
     g1 = 10.0
-
-    F = FarquharC3(peaked_Jmax=True, peaked_Vcmax=True, model_Q10=True,
+    theta_J = 0.85
+    F = FarquharC3(peaked_Jmax=True, peaked_Vcmax=False, model_Q10=True,
                    gs_model="leuning", gamma=gamma, g0=g0,
-                   g1=g1)
+                   g1=g1, theta_J=theta_J)
 
     D = Desica(psist0=psist0, AL=AL, p50=p50, psiv=psiv, gmin=gmin, Cl=Cl,
                Cs=Cs, F=F, run_twice=True, stop_dead=True)

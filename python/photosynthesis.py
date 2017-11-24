@@ -214,7 +214,6 @@ class FarquharC3(object):
             else:
                 Vcmax = self.arrh(Vcmax25, Eav, Tleaf)
 
-
         if Jmax25 is not None:
             if self.peaked_Jmax:
                 Jmax = self.peaked_arrh(Jmax25, Eaj, Tleaf, deltaSj, Hdj)
@@ -233,8 +232,8 @@ class FarquharC3(object):
         else:
             J = Jmax
 
-        Jmax = self.adj_for_low_temp(Jmax, Tleaf)
-        Vcmax = self.adj_for_low_temp(Vcmax, Tleaf)
+        #Jmax = self.adj_for_low_temp(Jmax, Tleaf)
+        #Vcmax = self.adj_for_low_temp(Vcmax, Tleaf)
 
         if self.gs_model == "leuning":
             g0 = self.g0 * self.GSW_2_GSC
