@@ -113,9 +113,12 @@ class Desica(object):
             # flux from soil to stem = change in stem storage, plus Jrl
             out.Jrs[i] = self.calc_flux_soil_to_stem(out.psist[i],
                                                      out.psist[i-1], out.Jsl[i])
-            print(out.Jrs[i])
-            sys.exit()
 
+            out.sw[i] = self.update_sw_balance(met.precip[i], out.Jrs[i],
+                                               out.sw[i-1])
+
+            print(out.sw[i])
+            sys.exit()
     def calc_flux_soil_to_stem(self, psist, psist_prev, Jsl):
         return (psist - psist_prev) * self.Cs / self.timestep_sec + Jsl
 
@@ -192,6 +195,18 @@ class Desica(object):
         psist = ((ap * psist_prev + bp) * np.exp(ap * self.timestep_sec)-bp)/ap
 
         return psist
+
+    def update_sw_balance(self, precip, Jrs, sw_prev):
+
+        # Soil water increase: precip - transpiration (units kg total tstep-1)
+        # (Note: transpiration is part of Jrs).
+        conv = 1E-06 * 18.
+        water_in = self.ground_area * precip - self.timestep_sec * conv * Jrs
+
+        # soil water content (sw) in units m3 m-3
+        sw = min(1.0, sw_prev + water_in / (self.soil_volume * 1E03))
+
+        return sw
 
 
 if __name__ == "__main__":
