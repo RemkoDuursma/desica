@@ -124,13 +124,15 @@ class Desica(object):
 
         Tleaf_K = met.tair[i] + self.deg2kelvin
 
+        mult = (self.g1 / self.Ca) * self.fsig_tuzet(out.psil[i-1],
+                                                     self.psiv, self.sf)
         (An, Acn,
          Ajn, gsc) = self.F.calc_photosynthesis(Cs=Cs, Tleaf=Tleaf_K,
                                                 Par=met.par[i], vpd=met.vpd[i],
                                                 Rd25=0.92, Q10=1.92, Vcmax25=50,
                                                 Jmax25=100., Eav=82620.87,
                                                 deltaSv=645.1013, Eaj=39676.89,
-                                                deltaSj=641.3615)
+                                                deltaSj=641.3615, mult=mult)
 
         print(An)
         sys.exit()
@@ -255,6 +257,8 @@ class Desica(object):
     def calc_plc(self, kp):
         return 100.0 * (1.0 - kp / self.kpsat)
 
+    def fsig_tuzet(self, psil, psiv, sf):
+        return (1.0 + np.exp(sf * psiv)) / (1.0 + np.exp(sf * (psiv - psil)))
 
 if __name__ == "__main__":
 
@@ -284,7 +288,7 @@ if __name__ == "__main__":
     g1 = 10.0
     theta_J = 0.85
     F = FarquharC3(peaked_Jmax=True, peaked_Vcmax=False, model_Q10=True,
-                   gs_model="leuning", gamma=gamma, g0=g0,
+                   gs_model="user_defined", gamma=gamma, g0=g0,
                    g1=g1, theta_J=theta_J)
 
     D = Desica(psist0=psist0, AL=AL, p50=p50, psiv=psiv, gmin=gmin, Cl=Cl,

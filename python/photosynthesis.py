@@ -142,7 +142,7 @@ class FarquharC3(object):
                             Vcmax=None, Jmax25=None, Vcmax25=None, Rd=None,
                             Rd25=None, Q10=None, Eaj=None, Eav=None,
                             deltaSj=None, deltaSv=None, Hdv=200000.0,
-                            Hdj=200000.0, Ear=None, vpd=None):
+                            Hdj=200000.0, Ear=None, vpd=None, mult=None):
         """
         Parameters
         ----------
@@ -254,6 +254,12 @@ class FarquharC3(object):
             # because we are calculating conductance to CO2!
             gs_over_a = (1.0 + self.g1 / math.sqrt(vpd)) / Cs
             ci_over_ca = self.g1 / (self.g1 + math.sqrt(vpd))
+
+        elif self.gs_model == "user_defined":
+            # Multiplier is user-defined.
+            gs_over_a = mult / self.GSC_2_GSW
+            print(mult, gs_over_a)
+            sys.exit()
 
         # Solution when Rubisco activity is limiting
         A = g0 + gs_over_a * (Vcmax - Rd)
