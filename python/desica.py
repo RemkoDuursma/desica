@@ -138,7 +138,7 @@ class Desica(object):
 
         mult = (self.g1 / self.Ca) * self.fsig_tuzet(out.psil[i-1],
                                                      self.psiv, self.sf)
-        
+
         (An,
          gsc, gsw) = self.F.calc_photosynthesis(Cs=self.Ca,
                                                 Tleaf=Tleaf_K,
@@ -156,9 +156,7 @@ class Desica(object):
         gs = max(self.gmin, 1000. * gsw)
 
         # Leaf transpiration (mmol m-2 s-1)
-        out.Eleaf[i] = (met.vpd[i] / 101.0) * gsw
-
-        print((gs, out.Eleaf[i]))
+        out.Eleaf[i] = (met.vpd[i] / 101.0) * gs
 
         out.psil[i] = self.calc_xylem_water_potential(out.kstl[i],
                                                       out.psist[i-1],
@@ -186,9 +184,8 @@ class Desica(object):
         # Update soil-to-root hydraulic conductance
         out.ks[i] = self.calc_ksoil(out.psis[i])
 
-        #print(i, out.psil[i])
+        print(i, out.psil[i])
 
-        sys.exit()
         return out
 
     def calc_swp(self, sw):

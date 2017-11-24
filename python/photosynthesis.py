@@ -313,7 +313,6 @@ class FarquharC3(object):
 
         gsw = gsc * self.GSC_2_GSW
 
-        print(Ci, An, gsc, gsw, Ac, Aj, Rd)
         return (An, gsc, gsw)
 
     def adj_for_low_temp(self, param, Tk, lower_bound=0.0, upper_bound=10.0):
