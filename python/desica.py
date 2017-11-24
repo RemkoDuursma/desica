@@ -19,8 +19,10 @@ from photosynthesis import FarquharC3
 
 class Desica(object):
 
+    DEG2KELVIN = 273.15
+
     def __init__(self, plc_dead=88.,soil_depth=1.0, ground_area=1.0,
-                 met_timestep=15., Ca=400., sf=8., g1=10., Cs=100000.,
+                 met_timestep=15., sf=8., g1=10., Cs=100000.,
                  Cl=10000., kp_sat=3., p50=-4., psiv=-2., s50=30., gmin=10,
                  psi_leaf0=-1., psi_stem0=-0.5, theta_sat=0.5,sw0=0.5, AL=2.5, b=6.,
                  psie=-0.8*1E-03, Ksat=20., Lv=10000., F=None, keep_wet=False,
@@ -34,7 +36,6 @@ class Desica(object):
         self.ground_area = ground_area
         self.soil_volume = self.ground_area * self.soil_depth
         self.met_timestep = met_timestep
-        self.Ca = Ca
         self.sf = sf
         self.g1 = g1
         self.Cs = Cs
@@ -59,7 +60,7 @@ class Desica(object):
         self.timestep_sec = 60. * self.met_timestep
         if self.run_twice:
             self.timestep_sec /= 2.
-        self.Patm = 100.0
+
 
     def main(self, met=None):
 
@@ -81,7 +82,6 @@ class Desica(object):
                 plc = self.calc_plc(out.kp[i])
                 if plc > self.plc_dead:
                     break
-
 
         out["plc"] = self.calc_plc(out.kp)
         out["Eplant"] = self.AL * out.Eleaf
@@ -107,8 +107,8 @@ class Desica(object):
     def setup_out_df(self):
         dummy = np.ones(len(met)) * np.nan
         out = pd.DataFrame({'Eleaf':dummy, 'psi_leaf':dummy, 'psi_stem':dummy,
-                            'psi_soil':dummy, 'sw':dummy, 'ks':dummy, 'kp':dummy,
-                            'Jsl':dummy, 'Jrs':dummy, 'krst':dummy,
+                            'psi_soil':dummy, 'sw':dummy, 'ks':dummy,
+                            'kp':dummy, 'Jsl':dummy, 'Jrs':dummy, 'krst':dummy,
                             'kstl':dummy})
 
         return out
@@ -127,11 +127,11 @@ class Desica(object):
 
         Tleaf_K = met.tair[i] + self.deg2kelvin
 
-        mult = (self.g1 / self.Ca) * self.fsig_tuzet(out.psi_leaf[i-1],
-                                                     self.psiv, self.sf)
+        mult = (self.g1 / met.Ca[i]) * self.fsig_tuzet(out.psi_leaf[i-1],
+                                                       self.psiv, self.sf)
 
         (An,
-         gsc, gsw) = self.F.calc_photosynthesis(Cs=self.Ca,
+         gsc, gsw) = self.F.calc_photosynthesis(Cs=met.Ca[i],
                                                 Tleaf=Tleaf_K,
                                                 Par=met.par[i], vpd=met.vpd[i],
                                                 Rd25=0.92, Q10=1.92, Vcmax25=50,
@@ -141,7 +141,7 @@ class Desica(object):
 
         # Transpiration rate assuming perfect coupling.
         # Output units are mmol m-2 s-1
-        #Eleaf = 1000.0 * gsw * met.vpd[i] / self.Patm
+        #Eleaf = 1000.0 * gsw * met.vpd[i] / met.press[i]
 
         # Don't add gmin, instead use it as bottom value.
         gs = max(self.gmin, 1000. * gsw)
@@ -174,7 +174,7 @@ class Desica(object):
 
         # Update soil-to-root hydraulic conductance
         out.ks[i] = self.calc_ksoil(out.psi_soil[i])
-
+        
         return out
 
     def calc_swp(self, sw):
