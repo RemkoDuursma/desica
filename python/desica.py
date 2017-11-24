@@ -106,10 +106,18 @@ class Desica(object):
             out.Jsl[i] = self.calc_flux_to_leaf(out.psil[i], out.psil[i-1],
                                                 out.Eleaf[i])
 
+            # Update stem water potential
             out.psist[i] = self.update_stem_wp(out.krst[i], out.psis[i-1],
                                                out.Jsl[i], out.psist[i-1])
-            print(out.psist[i])
+
+            # flux from soil to stem = change in stem storage, plus Jrl
+            out.Jrs[i] = self.calc_flux_soil_to_stem(out.psist[i],
+                                                     out.psist[i-1], out.Jsl[i])
+            print(out.Jrs[i])
             sys.exit()
+
+    def calc_flux_soil_to_stem(self, psist, psist_prev, Jsl):
+        return (psist - psist_prev) * self.Cs / self.timestep_sec + Jsl
 
     def initial_model(self):
         n = len(met)
