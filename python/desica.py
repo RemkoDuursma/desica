@@ -19,12 +19,10 @@ from photosynthesis import FarquharC3
 
 class Desica(object):
 
-    DEG2KELVIN = 273.15
-
     def __init__(self, plc_dead=88.,soil_depth=1.0, ground_area=1.0,
-                 met_timestep=15., sf=8., g1=10., Cs=100000.,
+                 met_timestep=15., sf=8., g1=10., Cs=100000., b=6.,
                  Cl=10000., kp_sat=3., p50=-4., psiv=-2., s50=30., gmin=10,
-                 psi_leaf0=-1., psi_stem0=-0.5, theta_sat=0.5,sw0=0.5, AL=2.5, b=6.,
+                 psi_leaf0=-1., psi_stem0=-0.5, theta_sat=0.5,sw0=0.5, AL=2.5,
                  psie=-0.8*1E-03, Ksat=20., Lv=10000., F=None, keep_wet=False,
                  stop_dead=True, run_twice=True):
 
@@ -56,7 +54,6 @@ class Desica(object):
         self.Ksat = Ksat
         self.Lv = Lv
         self.F = F
-        self.deg2kelvin = 273.15
         self.timestep_sec = 60. * self.met_timestep
         if self.run_twice:
             self.timestep_sec /= 2.
@@ -125,19 +122,13 @@ class Desica(object):
         # from stem pool to leaf
         out.kstl[i] = 2.0 * out.kp[i]
 
-        Tleaf_K = met.tair[i] + self.deg2kelvin
 
         mult = (self.g1 / met.Ca[i]) * self.fsig_tuzet(out.psi_leaf[i-1],
                                                        self.psiv, self.sf)
 
-        (An,
-         gsc, gsw) = self.F.calc_photosynthesis(Cs=met.Ca[i],
-                                                Tleaf=Tleaf_K,
-                                                Par=met.par[i], vpd=met.vpd[i],
-                                                Rd25=0.92, Q10=1.92, Vcmax25=50,
-                                                Jmax25=100., Eav=82620.87,
-                                                deltaSv=645.1013, Eaj=39676.89,
-                                                deltaSj=641.3615, mult=mult)
+        # Calculate photosynthesis and stomatal conductance
+        gsw = self.F.canopy(met.Ca[i], met.tair[i], met.par[i],
+                            met.vpd[i], mult)
 
         # Transpiration rate assuming perfect coupling.
         # Output units are mmol m-2 s-1
@@ -251,6 +242,45 @@ class Desica(object):
     def fsig_tuzet(self, psi_leaf, psiv, sf):
         return (1.0 + np.exp(sf * psiv)) / (1.0 + np.exp(sf * (psiv - psi_leaf)))
 
+
+class CanopySpace(object):
+
+    def __init__(self, g0=0.001, gamma=0.0, g1=10.0, theta_J=0.85, Rd25=0.92,
+                 Q10=1.92, Vcmax25=50, Jmax25=100., Eav=82620.87,
+                 deltaSv=645.1013, Eaj=39676.89, deltaSj=641.3615):
+
+        self.deg2kelvin = 273.15
+        self.F = FarquharC3(peaked_Jmax=True, peaked_Vcmax=False,
+                            model_Q10=True, gs_model="user_defined",
+                            gamma=gamma, g0=g0, g1=g1, theta_J=theta_J)
+
+        self.Rd25 = Rd25
+        self.Q10 = Q10
+        self.Vcmax25 = Vcmax25
+        self.Jmax25 = Jmax25
+        self.Eav = Eav
+        self.Eaj = Eaj
+        self.deltaSv = deltaSv
+        self.deltaSj = deltaSj
+
+    def canopy(self, Cs, tair, par, vpd, mult):
+
+        tleaf_K = tair + self.deg2kelvin
+
+        (An, gsc, gsw) = self.F.calc_photosynthesis(Cs=Cs, Tleaf=tleaf_K,
+                                                    Par=par, vpd=vpd,
+                                                    Rd25=self.Rd25,
+                                                    Q10=self.Q10,
+                                                    Vcmax25=self.Vcmax25,
+                                                    Jmax25=self.Jmax25,
+                                                    Eav=self.Eav,
+                                                    deltaSv=self.deltaSv,
+                                                    Eaj=self.Eaj,
+                                                    deltaSj=self.deltaSj,
+                                                    mult=mult)
+
+        return (gsw)
+
 def make_plot(out):
 
     fig = plt.figure(figsize=(9,6))
@@ -300,24 +330,7 @@ if __name__ == "__main__":
     Cl = 10000.  # Leaf capacitance (mmol MPa-1) (total plant)
     Cs = 120000. # Stem capacitance (mmol MPa-1)
 
-
-    Vcmax25 = 30.0
-    Jmax25 = Vcmax25 * 2.0
-    Rd25 = 2.0
-    Eaj = 30000.0
-    Eav = 60000.0
-    deltaSj = 650.0
-    deltaSv = 650.0
-    Hdv = 200000.0
-    Hdj = 200000.0
-    Q10 = 2.0
-    gamma = 0.0
-    g0 = 0.001
-    g1 = 10.0
-    theta_J = 0.85
-    F = FarquharC3(peaked_Jmax=True, peaked_Vcmax=False, model_Q10=True,
-                   gs_model="user_defined", gamma=gamma, g0=g0,
-                   g1=g1, theta_J=theta_J)
+    F = CanopySpace()
 
     D = Desica(psi_stem0=psi_stem0, AL=AL, p50=p50, psiv=psiv, gmin=gmin, Cl=Cl,
                Cs=Cs, F=F, run_twice=True, stop_dead=True)
