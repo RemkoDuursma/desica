@@ -31,7 +31,7 @@ class Desica(object):
     def __init__(self, plc_dead=88.,soil_depth=1.0, ground_area=1.0,
                  met_timestep=30., sf=8., g1=10., Cs=100000., b=6.,
                  Cl=10000., kp_sat=3., p50=-4., psiv=-2., s50=30., gmin=10,
-                 psi_leaf0=-1., psi_stem0=-0.5, theta_sat=0.5,sw0=0.5, AL=2.5,
+                 psi_leaf0=-1., psi_stem0=-0.5, theta_sat=0.5, sw0=0.5, AL=2.5,
                  psie=-0.8*1E-03, Ksat=20., Lv=10000., F=None, keep_wet=False,
                  stop_dead=True, nruns=1):
 
@@ -55,7 +55,7 @@ class Desica(object):
         self.psi_leaf0 = psi_leaf0 # initial leaf water potential (MPa)
         self.psi_stem0 = psi_stem0 # initial stem water potential (MPa)
         self.theta_sat = theta_sat
-        self.sw0 = sw0 # initial soil volumetric water content
+        self.sw0 = sw0 # initial soil volumetric water content (m3 m-3)
         self.AL = AL
         self.lai = AL / self.ground_area
         self.b = b
@@ -128,15 +128,7 @@ class Desica(object):
 
     def run_timestep(self, i, met, out):
 
-        # Plant hydraulic conductance (mmol m-2 s-1 MPa-1). NB. depends on stem
-        # water potential from the previous timestep.
-        out.kp[i] = self.kp_sat * self.fsig_hydr(out.psi_stem[i-1])
-
-        # Conductance from soil to stem water store (mmol m-2 s-1 MPa-1)
-        out.krst[i] = 1.0 / (1.0 / out.ks[i-1] + 1.0 / (2.0 * out.kp[i]))
-
-        # Conductance from stem water store to leaf (mmol m-2 s-1 MPa-1)
-        out.kstl[i] = 2.0 * out.kp[i]
+        self.calc_conductances(out, i)
 
         mult = (self.g1 / met.Ca[i]) * self.fsig_tuzet(out.psi_leaf[i-1],
                                                        self.psiv, self.sf)
@@ -180,6 +172,17 @@ class Desica(object):
         out.ks[i] = self.calc_ksoil(out.psi_soil[i])
 
         return out
+
+    def calc_conductances(self, out, i):
+        # Plant hydraulic conductance (mmol m-2 s-1 MPa-1). NB. depends on stem
+        # water potential from the previous timestep.
+        out.kp[i] = self.kp_sat * self.fsig_hydr(out.psi_stem[i-1])
+
+        # Conductance from soil to stem water store (mmol m-2 s-1 MPa-1)
+        out.krst[i] = 1.0 / (1.0 / out.ks[i-1] + 1.0 / (2.0 * out.kp[i]))
+
+        # Conductance from stem water store to leaf (mmol m-2 s-1 MPa-1)
+        out.kstl[i] = 2.0 * out.kp[i]
 
     def calc_swp(self, sw):
         return self.psie * (sw / self.theta_sat)**-self.b
@@ -259,8 +262,9 @@ class Desica(object):
         conv = 1E-06 * 18.
         water_in = self.ground_area * precip - self.timestep_sec * conv * Jrs
 
-        # soil water content (sw) in units m3 m-3
+        # volumetric soil water content (m3 m-3)
         sw = min(1.0, sw_prev + water_in / (self.soil_volume * 1E03))
+        
         return sw
 
     def calc_plc(self, kp):
@@ -368,7 +372,6 @@ if __name__ == "__main__":
     Cs = 120000. # Stem capacitance (mmol MPa-1)
 
     F = CanopySpace()
-
     D = Desica(psi_stem0=psi_stem0, AL=AL, p50=p50, psiv=psiv, gmin=gmin, Cl=Cl,
                Cs=Cs, F=F, nruns=3, stop_dead=True)
     out = D.main(met)
