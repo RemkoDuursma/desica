@@ -189,18 +189,16 @@ class Desica(object):
 
     def fsig_hydr(self, P):
         X = 50.
-        SX = self.s50
-        PX = self.p50
-
         P = np.abs(P)
-        PX = np.abs(PX)
+        PX = np.abs(self.p50)
         V = (X - 100.) * np.log(1.0 - X / 100.)
-        p = (P / PX)**((PX * SX) / V)
+        p = (P / PX)**((PX * self.s50) / V)
         relk = (1. - X / 100.)**p
 
         return (relk)
 
-    def calc_xylem_water_potential(self, kstl, psi_stem_prev, psi_leaf_prev, Eleaf):
+    def calc_xylem_water_potential(self, kstl, psi_stem_prev, psi_leaf_prev,
+                                   Eleaf):
         # Following Xu et al, see Appendix + code
         #
         # Reference:
