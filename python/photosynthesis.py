@@ -261,8 +261,6 @@ class FarquharC3(object):
             g0 = self.g0 / self.GSC_2_GSW
             gs_over_a = mult / self.GSC_2_GSW
 
-
-
         if ( isclose(Par, 0.0) | isclose(Vj, 0.0) ):
             Cic = Cs
             Cij = Cs
@@ -298,10 +296,11 @@ class FarquharC3(object):
         if Aj <= Rd + 1E-09:
             Cij = Cs
             Aj = self.assim(Cij, gamma_star, a1=Vj, a2=2.0*gamma_star)
-            if Aj < Ac:
-                Ci = Cij
-            else:
-                Ci = Cic
+
+        if Aj < Ac:
+            Ci = Cij
+        else:
+            Ci = Cic
 
         # Hyperbolic minimum.
         Am = -self.quadratic(a=1.0 - 1E-04, b=Ac + Aj, c=Ac * Aj, large=True)
@@ -314,6 +313,7 @@ class FarquharC3(object):
 
         gsw = gsc * self.GSC_2_GSW
 
+        print(Ci, An, gsc, gsw, Ac, Aj, Rd)
         return (An, gsc, gsw)
 
     def adj_for_low_temp(self, param, Tk, lower_bound=0.0, upper_bound=10.0):

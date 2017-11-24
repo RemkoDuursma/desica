@@ -120,6 +120,9 @@ class Desica(object):
         return out
 
     def run_timestep(self, i, met, out):
+        met.par[i] = 1500.
+        met.tair[i] = 25.0
+        met.vpd[i] = 1.5
 
         # Plant hydraulic conductance
         # Note how it depends on previous timestep stem water potential.
@@ -135,7 +138,9 @@ class Desica(object):
 
         mult = (self.g1 / self.Ca) * self.fsig_tuzet(out.psil[i-1],
                                                      self.psiv, self.sf)
-        (An, gsc, gsw) = self.F.calc_photosynthesis(Cs=self.Ca,
+        
+        (An,
+         gsc, gsw) = self.F.calc_photosynthesis(Cs=self.Ca,
                                                 Tleaf=Tleaf_K,
                                                 Par=met.par[i], vpd=met.vpd[i],
                                                 Rd25=0.92, Q10=1.92, Vcmax25=50,
@@ -152,6 +157,8 @@ class Desica(object):
 
         # Leaf transpiration (mmol m-2 s-1)
         out.Eleaf[i] = (met.vpd[i] / 101.0) * gsw
+
+        print((gs, out.Eleaf[i]))
 
         out.psil[i] = self.calc_xylem_water_potential(out.kstl[i],
                                                       out.psist[i-1],
@@ -179,7 +186,9 @@ class Desica(object):
         # Update soil-to-root hydraulic conductance
         out.ks[i] = self.calc_ksoil(out.psis[i])
 
-        print(i, out.psil[i])
+        #print(i, out.psil[i])
+
+        sys.exit()
         return out
 
     def calc_swp(self, sw):
