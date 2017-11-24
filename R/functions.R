@@ -173,7 +173,8 @@ desica_calc_timestep <- function(met, i, out, pars){
   # Update soil water potential and soil-to-root hydraulic conductance
   out$psis[i] <- pars$psie * (out$sw[i]/pars$thetasat)^-pars$b
   out$ks[i] <- ksoil_fun(out$psis[i], Ksat=pars$Ksat, psie=pars$psie, 
-                         b=pars$b, LAI=pars$LAI, soildepth=pars$soildepth)
+                         b=pars$b, LAI=pars$LAI, soildepth=pars$soildepth,
+                         Lv=pars$Lv)
   
   
   return(out)
