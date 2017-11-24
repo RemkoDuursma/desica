@@ -15,15 +15,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 from generate_met_data import generate_met_data
+from photosynthesis import FarquharC3
 
 class Desica(object):
 
-    def __init__(self, keep_wet=False, stop_dead=True, plc_dead=88.,
-                 run_twice=True, soil_depth=1.0, ground_area=1.0,
+    def __init__(self, plc_dead=88.,soil_depth=1.0, ground_area=1.0,
                  met_timestep=15., Ca=400., sf=8., g1=10., Cs=100000.,
                  Cl=10000., kpsat=3., p50=-4., psiv=-2., s50=30., gmin=10,
                  psil0=-1., psist0=-0.5, theta_sat=0.5,sw0=0.5, AL=2.5, b=6.,
-                 psie=-0.8*1E-03, Ksat=20., Lv=10000., f=None, LMA=None):
+                 psie=-0.8*1E-03, Ksat=20., Lv=10000., F=None, keep_wet=False,
+                 stop_dead=True, run_twice=True):
 
         self.keep_wet = keep_wet
         self.stop_dead = stop_dead
@@ -53,6 +54,8 @@ class Desica(object):
         self.psie = psie
         self.Ksat = Ksat
         self.Lv = Lv
+        self.F = F
+        self.deg2kelvin = 273.15
         self.timestep_sec = 60. * self.met_timestep
         if self.run_twice:
             self.timestep_sec /= 2.
@@ -62,7 +65,7 @@ class Desica(object):
 
         (n, out) = self.initial_model()
 
-        for i in range(1, n+1):
+        for i in range(1, n):
 
             out = self.run_timestep(i, met, out)
 
@@ -71,7 +74,7 @@ class Desica(object):
             if self.run_twice:
                 out2 = out
                 out2.psil[i-1] = out.psil[i]
-                out2 / psist[i-1] = out.psist[i]
+                out2.psist[i-1] = out.psist[i]
                 out = self.run_timestep(i, met, out2)
 
             if self.stop_dead:
@@ -119,6 +122,20 @@ class Desica(object):
         # from stem pool to leaf
         out.kstl[i] = 2.0 * out.kp[i]
 
+        Tleaf = met.tair[i] + self.deg2kelvin
+        print(met.tair[i], Tleaf)
+        sys.exit()
+        """
+        self.F.calc_photosynthesis(Cs=Cs, Tleaf=Tleaf_K, Par=par,
+                                              Jmax25=self.Jmax25,
+                                              Vcmax25=self.Vcmax25,
+                                              Q10=self.Q10, Eaj=self.Eaj,
+                                              Eav=self.Eav,
+                                              deltaSj=self.deltaSj,
+                                              deltaSv=self.deltaSv,
+                                              Rd25=self.Rd25, Hdv=self.Hdv,
+                                              Hdj=self.Hdj, vpd=dleaf)
+        """
         # call photosynthesis ... add coupled code.
         # Use this for now ...
         Ci = 400.
@@ -252,6 +269,25 @@ if __name__ == "__main__":
     Cl = 10000.  # Leaf capacitance (mmol MPa-1) (total plant)
     Cs = 120000. # Stem capacitance (mmol MPa-1)
 
+
+    Vcmax25 = 30.0
+    Jmax25 = Vcmax25 * 2.0
+    Rd25 = 2.0
+    Eaj = 30000.0
+    Eav = 60000.0
+    deltaSj = 650.0
+    deltaSv = 650.0
+    Hdv = 200000.0
+    Hdj = 200000.0
+    Q10 = 2.0
+    gamma = 0.0
+    g0 = 0.001
+    g1 = 10.0
+
+    F = FarquharC3(peaked_Jmax=True, peaked_Vcmax=True, model_Q10=True,
+                   gs_model="leuning", gamma=gamma, g0=g0,
+                   g1=g1)
+
     D = Desica(psist0=psist0, AL=AL, p50=p50, psiv=psiv, gmin=gmin, Cl=Cl,
-               Cs=Cs, run_twice=True, stop_dead=True)
+               Cs=Cs, F=F, run_twice=True, stop_dead=True)
     D.main(met)
