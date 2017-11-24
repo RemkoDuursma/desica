@@ -122,7 +122,6 @@ class Desica(object):
         # from stem pool to leaf
         out.kstl[i] = 2.0 * out.kp[i]
 
-
         mult = (self.g1 / met.Ca[i]) * self.fsig_tuzet(out.psi_leaf[i-1],
                                                        self.psiv, self.sf)
 
@@ -130,15 +129,11 @@ class Desica(object):
         gsw = self.F.canopy(met.Ca[i], met.tair[i], met.par[i],
                             met.vpd[i], mult)
 
-        # Transpiration rate assuming perfect coupling.
-        # Output units are mmol m-2 s-1
-        #Eleaf = 1000.0 * gsw * met.vpd[i] / met.press[i]
-
         # Don't add gmin, instead use it as bottom value.
-        gs = max(self.gmin, 1000. * gsw)
+        gsw = max(self.gmin, 1000. * gsw)
 
-        # Leaf transpiration (mmol m-2 s-1)
-        out.Eleaf[i] = (met.vpd[i] / 101.0) * gs
+        # Leaf transpiration assuming perfect coupling (mmol m-2 s-1)
+        out.Eleaf[i] = gsw * (met.vpd[i] / met.press[i])
 
         out.psi_leaf[i] = self.calc_xylem_water_potential(out.kstl[i],
                                                           out.psi_stem[i-1],
