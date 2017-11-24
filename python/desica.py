@@ -82,19 +82,13 @@ class Desica(object):
                 if plc > self.plc_dead:
                     break
 
-        #"""
+
         out["plc"] = self.calc_plc(out.kp)
         out["Eplant"] = self.AL * out.Eleaf
         out["t"] = np.arange(1, n+1)
-        plt.plot(out.t / 96, out.psil, "k-", label="Leaf")
-        plt.plot(out.t / 96, out.psist, "r-", label="Stem")
-        plt.plot(out.t / 96, out.psis, "b-", label="Soil")
-        plt.xlabel("Time (days)")
-        plt.ylabel("Water potential (MPa)")
-        plt.legend(numpoints=1, loc="best")
-        plt.ylim(-5,0)
-        plt.show()
-        #"""
+
+        return (out)
+
     def initial_model(self):
         n = len(met)
 
@@ -255,6 +249,44 @@ class Desica(object):
     def fsig_tuzet(self, psil, psiv, sf):
         return (1.0 + np.exp(sf * psiv)) / (1.0 + np.exp(sf * (psiv - psil)))
 
+def make_plot(out):
+
+    fig = plt.figure(figsize=(9,6))
+    fig.subplots_adjust(hspace=0.3)
+    fig.subplots_adjust(wspace=0.2)
+    plt.rcParams['text.usetex'] = False
+    plt.rcParams['font.family'] = "sans-serif"
+    plt.rcParams['font.sans-serif'] = "Helvetica"
+    plt.rcParams['axes.labelsize'] = 12
+    plt.rcParams['font.size'] = 12
+    plt.rcParams['legend.fontsize'] = 12
+    plt.rcParams['xtick.labelsize'] = 12
+    plt.rcParams['ytick.labelsize'] = 12
+
+    ax1 = fig.add_subplot(111)
+    ax2 = ax1.twinx()
+
+    ln1 = ax1.plot(out.t / 96, out.psil, "k-", label="Leaf")
+    ln2 = ax1.plot(out.t / 96, out.psist, "r-", label="Stem")
+    ln3 = ax1.plot(out.t / 96, out.psis, "b-", label="Soil")
+
+    ln4 = ax2.plot(out.t / 96, out.plc, '-g', label="PLC")
+
+    # added these three lines
+    lns = ln1 + ln2 + ln3 + ln4
+    labs = [l.get_label() for l in lns]
+    ax1.legend(lns, labs, loc="best", ncol=2)
+
+    ax2.set_ylabel(r'PLC (%)')
+    ax2.tick_params('y', colors='r')
+
+    ax1.set_xlabel("Time (days)")
+    ax1.set_ylabel("Water potential (MPa)")
+    #ax1.legend(numpoints=1, loc="best")
+    fig.savefig("test_plot.pdf", bbox_inches='tight', pad_inches=0.1)
+
+
+
 if __name__ == "__main__":
 
     met = generate_met_data(Tmin=10, RH=30, ndays=200)
@@ -288,4 +320,6 @@ if __name__ == "__main__":
 
     D = Desica(psist0=psist0, AL=AL, p50=p50, psiv=psiv, gmin=gmin, Cl=Cl,
                Cs=Cs, F=F, run_twice=True, stop_dead=True)
-    D.main(met)
+    out = D.main(met)
+
+    make_plot(out)
