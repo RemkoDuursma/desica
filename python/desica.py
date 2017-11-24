@@ -1,7 +1,16 @@
 #!/usr/bin/env python
 
 """
-Desica model
+Desica model: simple plant hydraulics model with mortality.
+
+Stem water potential follows Xu et al.
+
+Reference:
+==========
+* Xu, X., Medvigy, D., Powers, J. S., Becknell, J. M. and Guan, K.
+  (2016), Diversity in plant hydraulic traits explains seasonal and
+  inter-annual variations of vegetation dynamics in seasonally dry
+  tropical forests. New Phytol, 212: 80–95. doi:10.1111/nph.14009.
 
 That's all folks.
 """
@@ -192,7 +201,15 @@ class Desica(object):
         return (relk)
 
     def calc_xylem_water_potential(self, kstl, psi_stem_prev, psi_leaf_prev, Eleaf):
-        # Xu method.
+        # Following Xu et al, see Appendix + code
+        #
+        # Reference:
+        # ==========
+        # * Xu, X., Medvigy, D., Powers, J. S., Becknell, J. M. and Guan, K.
+        #   (2016), Diversity in plant hydraulic traits explains seasonal and
+        #    inter-annual variations of vegetation dynamics in seasonally dry
+        #    tropical forests. New Phytol, 212: 80–95. doi:10.1111/nph.14009.
+        #
         # Can write the dynamic equation as: dpsi_leaf_dt = b + a*psi_leaf
         # Then it follows (Xu et al. 2016, Appendix, and Code).
         bp = (self.AL * 2.0 * kstl * psi_stem_prev - self.AL * Eleaf) / self.Cl
@@ -209,7 +226,15 @@ class Desica(object):
         return Jsl
 
     def update_stem_wp(self, krst, psi_soil_prev, Jsl, psi_stem_prev):
-        # from Xu et al. 2016.
+        # Following Xu et al, see Appendix + code
+        #
+        # Reference:
+        # ==========
+        # * Xu, X., Medvigy, D., Powers, J. S., Becknell, J. M. and Guan, K.
+        #   (2016), Diversity in plant hydraulic traits explains seasonal and
+        #    inter-annual variations of vegetation dynamics in seasonally dry
+        #    tropical forests. New Phytol, 212: 80–95. doi:10.1111/nph.14009.
+        #
         bp = (self.AL * 2.0 * krst * psi_soil_prev - Jsl) / self.Cs
         ap = -(self.AL * 2.0 * krst / self.Cs)
         psi_stem = ((ap * psi_stem_prev + bp) * \
