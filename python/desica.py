@@ -58,70 +58,26 @@ class Desica(object):
             self.timestep_sec /= 2.
 
 
-    def run_me(self, met=None):
+    def main(self, met=None):
 
         (n, out) = self.initial_model()
 
         for i in range(1, n+1):
 
-            # Plant hydraulic conductance
-            # Note how it depends on previous timestep stem water potential.
-            out.kp[i] = self.kpsat * self.fsig_hydr(out.psist[i-1])
+            out = self.run_timestep(i, met, out)
 
-            # from soil to stem pool
-            out.krst[i] = 1.0 / (1.0 / out.ks[i-1] + 1.0 / (2.0 * out.kp[i]))
+            # save solutions, use as input for another run,
+            # keeping everything else the same
+            if self.run_twice:
+                out2 = out
+                out2.psil[i-1] = out.psil[i]
+                out2 / psist[i-1] = out.psist[i]
+                out = self.run_timestep(i, met, out2)
 
-            # from stem pool to leaf
-            out.kstl[i] = 2.0 * out.kp[i]
-
-            # call photosynthesis ... add coupled code.
-            # Use this for now ...
-            Ci = 400.
-            ALEAF = -0.4407474
-            GS = 0.001
-            ELEAF = 0.01102896
-            Ac = 7.586432
-            Aj = 0.0
-            Ap = 3000.
-            Rd = 0.4407474
-            VPD = 1.102896
-            Tleaf = 13.71879
-            Ca = 400.
-            Cc = 400.
-            PPFD = 0.0
-            Patm = 100.
-
-            # Don't add gmin, instead use it as bottom value.
-            gs = max(self.gmin, 1000. * GS)
-
-            # Leaf transpiration (mmol m-2 s-1)
-            out.Eleaf[i] = (met.vpd[i] / 101.0) * gs
-
-            out.psil[i] = self.calc_xylem_water_potential(out.kstl[i],
-                                                          out.psist[i-1],
-                                                          out.psil[i-1],
-                                                          out.Eleaf[i])
-
-            # Flux from stem to leaf= change in leaf storage, plus transpiration
-            out.Jsl[i] = self.calc_flux_to_leaf(out.psil[i], out.psil[i-1],
-                                                out.Eleaf[i])
-
-            # Update stem water potential
-            out.psist[i] = self.update_stem_wp(out.krst[i], out.psis[i-1],
-                                               out.Jsl[i], out.psist[i-1])
-
-            # flux from soil to stem = change in stem storage, plus Jrl
-            out.Jrs[i] = self.calc_flux_soil_to_stem(out.psist[i],
-                                                     out.psist[i-1], out.Jsl[i])
-
-            out.sw[i] = self.update_sw_balance(met.precip[i], out.Jrs[i],
-                                               out.sw[i-1])
-
-            # Update soil water potential
-            out.psis[i] = self.calc_swp(out.sw[i])
-
-            # Update soil-to-root hydraulic conductance
-            out.ks[i] = self.calc_ksoil(out.psis[i])
+            if self.stop_dead:
+                plc = 100.0 * (1.0 - out.kp[i] / self.kpsat)
+                if plc > self.plc_dead:
+                    break
 
 
     def initial_model(self):
@@ -145,6 +101,69 @@ class Desica(object):
                             'psis':dummy, 'sw':dummy, 'ks':dummy, 'kp':dummy,
                             'Jsl':dummy, 'Jrs':dummy, 'krst':dummy,
                             'kstl':dummy})
+
+        return out
+
+    def run_timestep(self, i, met, out):
+
+        # Plant hydraulic conductance
+        # Note how it depends on previous timestep stem water potential.
+        out.kp[i] = self.kpsat * self.fsig_hydr(out.psist[i-1])
+
+        # from soil to stem pool
+        out.krst[i] = 1.0 / (1.0 / out.ks[i-1] + 1.0 / (2.0 * out.kp[i]))
+
+        # from stem pool to leaf
+        out.kstl[i] = 2.0 * out.kp[i]
+
+        # call photosynthesis ... add coupled code.
+        # Use this for now ...
+        Ci = 400.
+        ALEAF = -0.4407474
+        GS = 0.001
+        ELEAF = 0.01102896
+        Ac = 7.586432
+        Aj = 0.0
+        Ap = 3000.
+        Rd = 0.4407474
+        VPD = 1.102896
+        Tleaf = 13.71879
+        Ca = 400.
+        Cc = 400.
+        PPFD = 0.0
+        Patm = 100.
+
+        # Don't add gmin, instead use it as bottom value.
+        gs = max(self.gmin, 1000. * GS)
+
+        # Leaf transpiration (mmol m-2 s-1)
+        out.Eleaf[i] = (met.vpd[i] / 101.0) * gs
+
+        out.psil[i] = self.calc_xylem_water_potential(out.kstl[i],
+                                                      out.psist[i-1],
+                                                      out.psil[i-1],
+                                                      out.Eleaf[i])
+
+        # Flux from stem to leaf= change in leaf storage, plus transpiration
+        out.Jsl[i] = self.calc_flux_to_leaf(out.psil[i], out.psil[i-1],
+                                            out.Eleaf[i])
+
+        # Update stem water potential
+        out.psist[i] = self.update_stem_wp(out.krst[i], out.psis[i-1],
+                                           out.Jsl[i], out.psist[i-1])
+
+        # flux from soil to stem = change in stem storage, plus Jrl
+        out.Jrs[i] = self.calc_flux_soil_to_stem(out.psist[i],
+                                                 out.psist[i-1], out.Jsl[i])
+
+        out.sw[i] = self.update_sw_balance(met.precip[i], out.Jrs[i],
+                                           out.sw[i-1])
+
+        # Update soil water potential
+        out.psis[i] = self.calc_swp(out.sw[i])
+
+        # Update soil-to-root hydraulic conductance
+        out.ks[i] = self.calc_ksoil(out.psis[i])
 
         return out
 
@@ -229,4 +248,4 @@ if __name__ == "__main__":
 
     D = Desica(psist0=psist0, AL=AL, p50=p50, psiv=psiv, gmin=gmin, Cl=Cl,
                Cs=Cs, run_twice=True, stop_dead=True)
-    D.run_me(met)
+    D.main(met)
