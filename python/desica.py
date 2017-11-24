@@ -82,7 +82,7 @@ class Desica(object):
                 if plc > self.plc_dead:
                     break
 
-        """
+        #"""
         out["plc"] = self.calc_plc(out.kp)
         out["Eplant"] = self.AL * out.Eleaf
         out["t"] = np.arange(1, n+1)
@@ -94,7 +94,7 @@ class Desica(object):
         plt.legend(numpoints=1, loc="best")
         plt.ylim(-5,0)
         plt.show()
-        """
+        #"""
     def initial_model(self):
         n = len(met)
 
@@ -120,9 +120,6 @@ class Desica(object):
         return out
 
     def run_timestep(self, i, met, out):
-        met.par[i] = 1500.
-        met.tair[i] = 25.0
-        met.vpd[i] = 1.5
 
         # Plant hydraulic conductance
         # Note how it depends on previous timestep stem water potential.
@@ -183,8 +180,6 @@ class Desica(object):
 
         # Update soil-to-root hydraulic conductance
         out.ks[i] = self.calc_ksoil(out.psis[i])
-
-        print(i, out.psil[i])
 
         return out
 
