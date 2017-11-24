@@ -262,7 +262,7 @@ class Desica(object):
         water_in = self.ground_area * precip - self.timestep_sec * conv * Jrs
 
         # volumetric soil water content (m3 m-3)
-        sw = min(1.0, sw_prev + water_in / (self.soil_volume * 1E03))
+        sw = min(0.5, sw_prev + water_in / (self.soil_volume * 1E03))
 
         return sw
 
