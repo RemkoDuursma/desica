@@ -137,7 +137,7 @@ if __name__ == "__main__":
     met['year'] = met.index.year
     met['doy'] = met.index.dayofyear
 
-    met = met[met.index.year < 2003]
+    met = met[met.index.year < 2006]
 
     psi_stem0 = 0.
     AL = 2.      # leaf area (m2)
