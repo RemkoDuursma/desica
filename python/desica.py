@@ -117,10 +117,12 @@ class Desica(object):
             out.sw[i] = self.update_sw_balance(met.precip[i], out.Jrs[i],
                                                out.sw[i-1])
 
-            print(out.sw[i])
-            sys.exit()
-    def calc_flux_soil_to_stem(self, psist, psist_prev, Jsl):
-        return (psist - psist_prev) * self.Cs / self.timestep_sec + Jsl
+            # Update soil water potential
+            out.psis[i] = self.calc_swp(out.sw[i])
+
+            # Update soil-to-root hydraulic conductance
+            out.ks[i] = self.calc_ksoil(out.psis[i])
+
 
     def initial_model(self):
         n = len(met)
@@ -129,7 +131,7 @@ class Desica(object):
         out.psil[0] = self.psil0
         out.psist[0] = self.psist0
         out.sw[0] = self.sw0
-        out.psis[0] = self.psie * (self.sw0 / self.theta_sat)**-self.b
+        out.psis[0] = self.calc_swp(self.sw0)
         out.Eleaf[0] = 0.0
 
         # soil-to-root conductance
@@ -146,10 +148,11 @@ class Desica(object):
 
         return out
 
+    def calc_swp(self, sw):
+        return self.psie * (sw / self.theta_sat)**-self.b
+
     def calc_ksoil(self, psis):
-
         rroot = 1E-06
-
         Ks = self.Ksat * (self.psie / psis)**(2. + 3. / self.b)
         if psis == 0.0:
             Ks = self.Ksat
@@ -195,6 +198,9 @@ class Desica(object):
         psist = ((ap * psist_prev + bp) * np.exp(ap * self.timestep_sec)-bp)/ap
 
         return psist
+
+    def calc_flux_soil_to_stem(self, psist, psist_prev, Jsl):
+        return (psist - psist_prev) * self.Cs / self.timestep_sec + Jsl
 
     def update_sw_balance(self, precip, Jrs, sw_prev):
 
