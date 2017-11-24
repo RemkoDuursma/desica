@@ -61,11 +61,6 @@ desica <- function(met=NULL,
   # soil-to-root conductance
   out$ks[1] <- ksoil_fun(out$psis[1], Ksat, psie, b,
                          LAI, soildepth=soildepth, Lv=Lv)
-  print(c(out$psis[1], Ksat, psie, b, LAI, soildepth, Lv))
-  print(out$ks[1])
-  stop("DEBUG")
-
-
 
   pars <- list(timestep_sec=timestep_sec,
                psiv=psiv,sf=sf,g1=g1,Ca=Ca,Cs=Cs,
@@ -89,7 +84,7 @@ desica <- function(met=NULL,
         out2$psil[i-1] <- out$psil[i]
         out2$psist[i-1] <- out$psist[i]
 
-        out <- calc_timestep(met, i, out2, pars)
+        out <- desica_calc_timestep(met, i, out2, pars)
 
     }
 
@@ -102,6 +97,8 @@ desica <- function(met=NULL,
 
   d <- cbind(met, out)
   d$plc <- 100 * (1 - d$kp / kpsat)
+  print(d$plc)
+  stop()
   d$Eplant <- AL * out$Eleaf
   d$t <- 1:nrow(d)
 
