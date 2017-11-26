@@ -142,7 +142,7 @@ class Desica(object):
         # Leaf transpiration assuming perfect coupling (mmol m-2 s-1)
         out.Eleaf[i] = gsw * (met.vpd[i] / met.press[i])
 
-        out.psi_leaf[i] = self.calc_xylem_water_potential(out.kstl[i],
+        out.psi_leaf[i] = self.calc_leaf_water_potential(out.kstl[i],
                                                           out.psi_stem[i-1],
                                                           out.psi_leaf[i-1],
                                                           out.Eleaf[i])
@@ -208,7 +208,7 @@ class Desica(object):
 
         return (relk)
 
-    def calc_xylem_water_potential(self, kstl, psi_stem_prev, psi_leaf_prev,
+    def calc_leaf_water_potential(self, kstl, psi_stem_prev, psi_leaf_prev,
                                    Eleaf):
         # Following Xu et al, see Appendix + code
         #
