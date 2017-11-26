@@ -14,8 +14,8 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-from desica import Desica, CanopySpace
-from photosynthesis import FarquharC3
+from desica import Desica
+from canopy import Canopy, FarquharC3
 import netCDF4 as nc
 
 
@@ -148,7 +148,7 @@ if __name__ == "__main__":
     Cs = 120000. # Stem capacitance (mmol MPa-1)
     g1 = 4.0
 
-    F = CanopySpace(g1=g1)
+    F = Canopy(g1=g1)
     D = Desica(psi_stem0=psi_stem0, AL=AL, p50=p50, psi_f=psi_f, gmin=gmin,
                Cl=Cl, Cs=Cs, F=F, g1=g1, nruns=1, stop_dead=True,
                met_timestep=60.)

@@ -24,7 +24,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 from generate_met_data import generate_met_data
-from photosynthesis import FarquharC3
+from canopy import Canopy, FarquharC3
 
 class Desica(object):
 
@@ -45,7 +45,6 @@ class Desica(object):
         self.met_timestep = met_timestep
         self.sf = sf
         self.g1 = g1
-        print(self.g1)
         self.Cs = Cs
         self.Cl = Cl
         self.kp_sat = kp_sat
@@ -291,43 +290,6 @@ class Desica(object):
         return fw
 
 
-class CanopySpace(object):
-
-    def __init__(self, g0=0.001, gamma=0.0, g1=4.0, theta_J=0.85, Rd25=0.92,
-                 Q10=1.92, Vcmax25=50, Jmax25=100., Eav=82620.87,
-                 deltaSv=645.1013, Eaj=39676.89, deltaSj=641.3615):
-        print(g1)
-        self.deg2kelvin = 273.15
-        self.F = FarquharC3(peaked_Jmax=True, peaked_Vcmax=False,
-                            model_Q10=True, gs_model="user_defined",
-                            gamma=gamma, g0=g0, g1=g1, theta_J=theta_J)
-
-        self.Rd25 = Rd25
-        self.Q10 = Q10
-        self.Vcmax25 = Vcmax25
-        self.Jmax25 = Jmax25
-        self.Eav = Eav
-        self.Eaj = Eaj
-        self.deltaSv = deltaSv
-        self.deltaSj = deltaSj
-
-    def canopy(self, Cs, tair, par, vpd, mult):
-
-        tleaf_K = tair + self.deg2kelvin
-
-        (An, gsc, gsw) = self.F.calc_photosynthesis(Cs=Cs, Tleaf=tleaf_K,
-                                                    Par=par, vpd=vpd,
-                                                    Rd25=self.Rd25,
-                                                    Q10=self.Q10,
-                                                    Vcmax25=self.Vcmax25,
-                                                    Jmax25=self.Jmax25,
-                                                    Eav=self.Eav,
-                                                    deltaSv=self.deltaSv,
-                                                    Eaj=self.Eaj,
-                                                    deltaSj=self.deltaSj,
-                                                    mult=mult)
-
-        return (gsw)
 
 def make_plot(out, timestep=15):
 
@@ -410,9 +372,9 @@ if __name__ == "__main__":
     gmin = 10.   # mmol m-2 s-1
     Cl = 10000.  # Leaf capacitance (mmol MPa-1) (total plant)
     Cs = 120000. # Stem capacitance (mmol MPa-1)
+    g1 = 4.0
 
-    
-    F = CanopySpace(g1=g1)
+    F = Canopy(g1=g1)
     D = Desica(psi_stem0=psi_stem0, AL=AL, p50=p50, psi_f=psi_f, gmin=gmin,
                Cl=Cl, Cs=Cs, F=F, g1=g1, nruns=3, stop_dead=True)
     out = D.main(met)
