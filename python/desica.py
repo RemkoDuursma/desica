@@ -66,9 +66,22 @@ class Desica(object):
         self.timestep_sec = 60. * self.met_timestep / self.nruns
 
 
-    def main(self, met=None):
+    def run_simulation(self, met=None):
+        """
+        Main wrapper to control everything
 
-        (n, out) = self.initial_model(met)
+        Parameters:
+        -----------
+        met : object
+            met forcing variables: day; Ca; par; precip; press; tair; vpd
+
+        Returns:
+        -------
+        out : object
+            output dataframe containing calculations for each timestep
+
+        """
+        (n, out) = self.initialise_model(met)
 
         for i in range(1, n):
 
@@ -95,7 +108,24 @@ class Desica(object):
 
         return (out)
 
-    def initial_model(self, met):
+    def initialise_model(self, met):
+        """
+        Set everything up: set initial values, build an output dataframe to save
+        things
+
+        Parameters:
+        -----------
+        met : object
+            met forcing variables: day; Ca; par; precip; press; tair; vpd
+
+        Returns:
+        -------
+        n : int
+            number of timesteps in the met file
+        out : object
+            output dataframe to store things as we go along
+
+        """
         n = len(met)
 
         out = self.setup_out_df(met)
@@ -111,6 +141,20 @@ class Desica(object):
         return n, out
 
     def setup_out_df(self, met):
+        """
+        Create and output dataframe to save things
+
+        Parameters:
+        -----------
+        met : object
+            met forcing variables: day; Ca; par; precip; press; tair; vpd
+
+        Returns:
+        -------
+        out : object
+            output dataframe to store things as we go along
+
+        """
         dummy = np.ones(len(met)) * np.nan
         out = pd.DataFrame({'Eleaf':dummy, 'psi_leaf':dummy, 'psi_stem':dummy,
                             'psi_soil':dummy, 'sw':dummy, 'ks':dummy,
@@ -412,7 +456,7 @@ if __name__ == "__main__":
     F = Canopy(g1=g1)
     D = Desica(psi_stem0=psi_stem0, AL=AL, p50=p50, psi_f=psi_f, gmin=gmin,
                Cl=Cl, Cs=Cs, F=F, g1=g1, nruns=3, stop_dead=True)
-    out = D.main(met)
+    out = D.run_simulation(met)
 
     make_plot(out, time_step)
     plot_swp_sw(out)
