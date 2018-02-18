@@ -43,13 +43,13 @@ class Desica(object):
         self.ground_area = ground_area
         self.soil_volume = self.ground_area * self.soil_depth
         self.met_timestep = met_timestep
-        self.sf = sf
+        self.sf = sf # sensitivity parameter, MPa-1
         self.g1 = g1
         self.Cs = Cs
         self.Cl = Cl
         self.kp_sat = kp_sat
         self.p50 = p50
-        self.psi_f = psi_f
+        self.psi_f = psi_f # reference potential, MPa
         self.s50 = s50
         self.gmin = gmin
         self.psi_leaf0 = psi_leaf0 # initial leaf water potential (MPa)
@@ -64,6 +64,7 @@ class Desica(object):
         self.Lv = Lv
         self.F = F
         self.timestep_sec = 60. * self.met_timestep / self.nruns
+
 
     def main(self, met=None):
 
@@ -270,10 +271,23 @@ class Desica(object):
         return 100.0 * (1.0 - kp / self.kp_sat)
 
     def fsig_tuzet(self, psi_leaf):
-        """ Empirical logistic function to describe the sensitivity of stomata
-        to leaf water potential. Function assumes that stomata are insensitive
+        """
+        An empirical logistic function to describe the sensitivity of stomata
+        to leaf water potential.
+
+        Function assumes that stomata are insensitive
         to LWP at values close to zero and that stomata rapidly close with
         decreasing LWP.
+
+        Parameters:
+        -----------
+        psi_leaf : float
+            leaf water potential (MPa)
+
+        Returns:
+        -------
+        fw : float
+            sensitivity of stomata to leaf water potential
 
         Reference:
         ----------
@@ -282,11 +296,10 @@ class Desica(object):
           1097–1116
 
         """
-        # psi_f is the reference potential
         num = 1.0 + np.exp(self.sf * self.psi_f)
         den = 1.0 + np.exp(self.sf * (self.psi_f - psi_leaf))
-
         fw = num / den
+
         return fw
 
 
