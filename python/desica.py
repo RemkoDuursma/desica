@@ -47,7 +47,7 @@ class Desica(object):
         self.g1 = g1
         self.Cs = Cs
         self.Cl = Cl
-        self.kp_sat = kp_sat
+        self.kp_sat = kp_sat # plant saturated hydraulic conductance (mmol m-2 s-1 MPa-1)
         self.p50 = p50
         self.psi_f = psi_f # reference potential, MPa
         self.s50 = s50
@@ -268,6 +268,20 @@ class Desica(object):
         return sw
 
     def calc_plc(self, kp):
+        """
+        Calculates the percent loss of conductivity, PLC (-)
+
+        Parameters:
+        -----------
+        kp : float
+            plant hydraulic conductance (mmol m-2 s-1 MPa-1)
+
+        Returns:
+        -------
+        plc : float
+            percent loss of conductivity (-)
+
+        """
         return 100.0 * (1.0 - kp / self.kp_sat)
 
     def fsig_tuzet(self, psi_leaf):
