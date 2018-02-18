@@ -82,8 +82,8 @@ class Desica(object):
                 out_temp.psi_stem[i-1] = out.psi_stem[i]
                 out = self.run_timestep(i, met, out_temp)
 
+            # Stop the simulation if we've died, i.e. reached P88
             if self.stop_dead:
-                # percent loss conductivity (%)
                 plc = self.calc_plc(out.kp[i])
                 if plc > self.plc_dead:
                     break
