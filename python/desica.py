@@ -76,14 +76,6 @@ class Desica(object):
 
             # save solutions, use as input for another run,
             # keeping everything else the same
-            #if self.run_twice:
-            #    out2 = out
-            #    out2.psi_leaf[i-1] = out.psi_leaf[i]
-            #    out2.psi_stem[i-1] = out.psi_stem[i]
-            #    out = self.run_timestep(i, met, out2)
-
-            # save solutions, use as input for another run,
-            # keeping everything else the same
             for j in range(1, self.nruns):
                 out_temp = out
                 out_temp.psi_leaf[i-1] = out.psi_leaf[i]
