@@ -162,8 +162,8 @@ class Desica(object):
         out.Jrs[i] = self.calc_flux_soil_to_stem(out.psi_stem[i],
                                                  out.psi_stem[i-1], out.Jsl[i])
 
-        out.sw[i] = self.update_sw_balance(met.precip[i], out.Jrs[i],
-                                           out.sw[i-1])
+        out.sw[i] = self.update_sw_bucket(met.precip[i], out.Jrs[i],
+                                          out.sw[i-1])
 
         # Update soil water potential
         out.psi_soil[i] = self.calc_swp(out.sw[i])
@@ -255,15 +255,31 @@ class Desica(object):
     def calc_flux_soil_to_stem(self, psi_stem, psi_stem_prev, Jsl):
         return (psi_stem - psi_stem_prev) * self.Cs / self.timestep_sec + Jsl
 
-    def update_sw_balance(self, precip, Jrs, sw_prev):
+    def update_sw_bucket(self, precip, water_loss, sw_prev):
+        """
+        Update the simple bucket soil water balance
 
-        # Soil water increase: precip - transpiration (units kg total tstep-1)
-        # (Note: transpiration is part of Jrs).
-        conv = 1E-06 * 18.
-        water_in = self.ground_area * precip - self.timestep_sec * conv * Jrs
+        Parameters:
+        -----------
+        precip : float
+            precipitation (kg m-2 s-1)
+        water_loss : float
+            flux of water out of the soil (transpiration (kg m-2 timestep-1))
+        sw_prev : float
+            volumetric soil water from the previous timestep (m3 m-3)
+        soil_volume : float
+            volume soil water bucket (m3)
 
-        # volumetric soil water content (m3 m-3)
-        sw = min(0.5, sw_prev + water_in / (self.soil_volume * 1E03))
+        Returns:
+        -------
+        sw : float
+            new volumetric soil water (m3 m-3)
+
+        """
+        M_2_MM = 1E03
+        saturation = 0.5
+        delta_sw = precip - (water_loss * 1E-06 * 18.0 * self.timestep_sec)
+        sw = min(saturation, sw_prev + delta_sw / (self.soil_volume * M_2_MM))
 
         return sw
 
