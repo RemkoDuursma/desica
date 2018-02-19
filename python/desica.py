@@ -32,16 +32,16 @@ class Desica(object):
                  met_timestep=30., sf=8., g1=4., Cs=100000., b=6.,
                  Cl=10000., kp_sat=3., p50=-4., psi_f=-2., s50=30., gmin=10,
                  psi_leaf0=-1., psi_stem0=-0.5, theta_sat=0.5, sw0=0.5, AL=2.5,
-                 psie=-0.8*1E-03, Ksat=20., Lv=10000., F=None, keep_wet=False,
+                 psi_e=-0.8*1E-03, Ksat=20., Lv=10000., F=None, keep_wet=False,
                  stop_dead=True, nruns=1):
 
         self.keep_wet = keep_wet
         self.stop_dead = stop_dead
         self.plc_dead = plc_dead
         self.nruns = nruns
-        self.soil_depth = soil_depth
-        self.ground_area = ground_area
-        self.soil_volume = self.ground_area * self.soil_depth
+        self.soil_depth = soil_depth # depth of soil bucket, m
+        self.ground_area = ground_area # m
+        self.soil_volume = self.ground_area * self.soil_depth # m3
         self.met_timestep = met_timestep
         self.sf = sf # sensitivity parameter, MPa-1
         self.g1 = g1 # sensitivity of stomatal conductance to the assimilation rate, kPa
@@ -56,10 +56,10 @@ class Desica(object):
         self.psi_stem0 = psi_stem0 # initial stem water potential, MPa
         self.theta_sat = theta_sat # soil water capacity at saturation (m3 m-3)
         self.sw0 = sw0 # initial soil volumetric water content (m3 m-3)
-        self.AL = AL # leaf area, m2
-        self.lai = AL / self.ground_area
-        self.b = b
-        self.psie = psie
+        self.AL = AL # plant leaf area, m2
+        self.lai = AL / self.ground_area # leaf area index, m2 m-2
+        self.b = b # empirical coefficient related to the clay content of the soil (Cosby et al. 1984).
+        self.psi_e = psi_e # air entry point water potential (MPa)
         self.Ksat = Ksat
         self.Lv = Lv
         self.F = F
@@ -152,8 +152,7 @@ class Desica(object):
         Returns:
         -------
         out : object
-            output dataframe to store things as we go along
-
+            output dataframe to store things as we go along.
         """
         dummy = np.ones(len(met)) * np.nan
         out = pd.DataFrame({'Eleaf':dummy, 'psi_leaf':dummy, 'psi_stem':dummy,
@@ -210,6 +209,19 @@ class Desica(object):
         return out
 
     def calc_conductances(self, out, i):
+        """
+        Update the simple bucket soil water balance
+
+        Parameters:
+        -----------
+        out : object
+            output dataframe to access previous calculations and update new
+            states
+        i : int
+            current index
+
+        """
+
         # Plant hydraulic conductance (mmol m-2 s-1 MPa-1). NB. depends on stem
         # water potential from the previous timestep.
         out.kp[i] = self.kp_sat * self.fsig_hydr(out.psi_stem[i-1])
@@ -221,11 +233,24 @@ class Desica(object):
         out.kstl[i] = 2.0 * out.kp[i]
 
     def calc_swp(self, sw):
-        return self.psie * (sw / self.theta_sat)**-self.b
+        """
+        Calculate the soil water potential (MPa). The params The parameters b
+        and psi_e are estimated from a typical soil moisture release function.
+
+        Parameters:
+        -----------
+        sw : object
+            volumetric soil water content (m3 m-3)
+
+        Returns:
+        psi_swp : float
+            soil water potential, MPa
+        """
+        return self.psi_e * (sw / self.theta_sat)**-self.b
 
     def calc_ksoil(self, psi_soil):
         rroot = 1E-06
-        Ks = self.Ksat * (self.psie / psi_soil)**(2. + 3. / self.b)
+        Ks = self.Ksat * (self.psi_e / psi_soil)**(2. + 3. / self.b)
         if psi_soil == 0.0:
             Ks = self.Ksat
 
@@ -445,7 +470,7 @@ if __name__ == "__main__":
     met = generate_met_data(Tmin=10, RH=30, ndays=200, time_step=time_step)
 
     psi_stem0 = 0. # initial stem water potential, MPa
-    AL = 6.        # leaf area, m2
+    AL = 6.        # plant leaf area, m2
     p50 = -4.      # xylem pressure inducing 50% loss of hydraulic conductivity due to embolism, MPa
     psi_f = -3.    # reference potential for Tuzet model, MPa
     gmin = 10.     # minimum stomatal conductance, mmol m-2 s-1
