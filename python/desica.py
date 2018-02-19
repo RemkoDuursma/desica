@@ -25,6 +25,7 @@ import matplotlib.pyplot as plt
 import os
 from generate_met_data import generate_met_data
 from canopy import Canopy, FarquharC3
+from math import isclose
 
 class Desica(object):
 
@@ -33,7 +34,7 @@ class Desica(object):
                  Cl=10000., kp_sat=3., p50=-4., psi_f=-2., s50=30., gmin=10,
                  psi_leaf0=-1., psi_stem0=-0.5, theta_sat=0.5, sw0=0.5, AL=2.5,
                  psi_e=-0.8*1E-03, Ksat=20., Lv=10000., F=None, keep_wet=False,
-                 stop_dead=True, nruns=1):
+                 stop_dead=True, nruns=1, rroot=1E-06):
 
         self.keep_wet = keep_wet
         self.stop_dead = stop_dead
@@ -60,9 +61,10 @@ class Desica(object):
         self.lai = AL / self.ground_area # leaf area index, m2 m-2
         self.b = b # empirical coefficient related to the clay content of the soil (Cosby et al. 1984).
         self.psi_e = psi_e # air entry point water potential (MPa)
-        self.Ksat = Ksat
-        self.Lv = Lv
+        self.Ksat = Ksat # saturated conductivity, mol m-1 s-1 MPa-1
+        self.Lv = Lv # root length density, m m-3
         self.F = F
+        self.rroot = rroot # mean radius of water absorbing roots, m
         self.timestep_sec = 60. * self.met_timestep / self.nruns
 
 
@@ -244,20 +246,46 @@ class Desica(object):
 
         Returns:
         -----------
-        psi_swp : float
+        psi_soil : float
             soil water potential, MPa
+
+        References:
+        -----------
+        * Duursma et al. (2008) Tree Physiology 28, 265–276, eqn 10
         """
         return self.psi_e * (sw / self.theta_sat)**-self.b
 
     def calc_ksoil(self, psi_soil):
-        rroot = 1E-06
-        Ks = self.Ksat * (self.psi_e / psi_soil)**(2. + 3. / self.b)
-        if psi_soil == 0.0:
+        """
+        Calculate soil hydraulic conductance (mol m-1 s-1 MPa-1)
+
+        Parameters:
+        -----------
+        sw : object
+            volumetric soil water content (m3 m-3)
+
+        Returns:
+        --------
+        psi_swp : float
+            soil water potential, MPa
+
+        References:
+        -----------
+        * Duursma et al. (2008) Tree Physiology 28, 265–276, eqn 9, 8, 7
+        """
+
+
+        # A simple equation relating Ks to psi_s is given by (Campbell 1974)
+        Ks = self.Ksat * (self.psi_e / psi_soil)**(2.0 + 3.0 / self.b)
+        if isclose(psi_soil, 0.0):
             Ks = self.Ksat
 
+        # the radius of a cylinder of soil to which the root has access, n
         rcyl = 1.0 / np.sqrt(np.pi * self.Lv)
+
+        # root length index, m root m-3 soil surface
         Rl = self.Lv * self.soil_depth
-        Ksoil = (Rl / self.lai) * 2. * np.pi * Ks / np.log(rcyl / rroot)
+        Ksoil = (Rl / self.lai) * 2. * np.pi * Ks / np.log(rcyl / self.rroot)
 
         return Ksoil
 
