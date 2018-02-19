@@ -192,12 +192,9 @@ class Desica(object):
         out.psi_stem[i] = self.update_stem_wp(out.krst[i], out.psi_soil[i-1],
                                               out.Jsl[i], out.psi_stem[i-1])
 
-        # flux from soil to stem, i.e. root water uptake (mmol s-1) = change in
-        # stem storage, plus Jsl
-        out.Jrs[i] = self.calc_flux_soil_to_stem(out.psi_stem[i],
-                                                 out.psi_stem[i-1], out.Jsl[i])
+        out.Jrs[i] = self.calc_flux_to_stem(out.psi_stem[i], out.psi_stem[i-1],
+                                            out.Jsl[i])
 
-        # Update water balance
         out.sw[i] = self.update_sw_bucket(met.precip[i], out.Jrs[i],
                                           out.sw[i-1])
 
@@ -344,19 +341,9 @@ class Desica(object):
         References:
         -----------
         * Xu et al. (2016) New Phytol, 212: 80–95. doi:10.1111/nph.14009; see
-          appendix and code
+          appendix and code. Can write the dynamic equation as:
+          dpsi_leaf_dt = b + a*psi_leaf
         """
-        # Following Xu et al, see Appendix + code
-        #
-        # Reference:
-        # ==========
-        # * Xu, X., Medvigy, D., Powers, J. S., Becknell, J. M. and Guan, K.
-        #   (2016), Diversity in plant hydraulic traits explains seasonal and
-        #    inter-annual variations of vegetation dynamics in seasonally dry
-        #    tropical forests. New Phytol, 212: 80–95. doi:10.1111/nph.14009.
-        #
-        # Can write the dynamic equation as: dpsi_leaf_dt = b + a*psi_leaf
-        # Then it follows (Xu et al. 2016, Appendix, and Code).
         bp = (self.AL * 2.0 * kstl * psi_stem_prev - self.AL * Eleaf) / self.Cl
         ap = -(self.AL * 2.0 * kstl / self.Cl)
         psi_leaf = ((ap * psi_leaf_prev + bp) * \
@@ -364,31 +351,81 @@ class Desica(object):
 
         return psi_leaf
 
+    def calc_flux_to_stem(self, psi_stem, psi_stem_prev, Jsl):
+        """
+        Calculate the flux from the soil to the stem, i.e. the root water
+        uptake (mmol s-1) = change in stem storage plus Jsl
+
+        Parameters:
+        -----------
+        psi_stem : float
+            stem water potential, MPa
+        psi_stem_prev : float
+            stem water potential from the previous timestep, MPa
+        Jsl : float
+            flux of water fromt he stem to leaf
+
+        Returns:
+        -------
+        Jrs : float
+            flux from soil to the stem
+        """
+        return (psi_stem - psi_stem_prev) * self.Cs / self.timestep_sec + Jsl
+
     def calc_flux_to_leaf(self, psi_leaf, psi_leaf_prev, Eleaf):
-        # Flux from stem to leaf = change in leaf storage, plus transpiration
-        Jsl = (psi_leaf - psi_leaf_prev) * \
+        """
+        Calculate the flux from the stem to the leaf = change in leaf storage
+        plus transpiration
+
+        Parameters:
+        -----------
+        psi_leaf : float
+            leaf water potential, MPa
+        psi_leaf_prev : float
+            leaf water potential from the previous timestep, MPa
+        Eleaf : float
+            transpiration, mmol m-2 s-1
+
+        Returns:
+        -------
+        Jsl : float
+            flux from stem to the leaf
+        """
+        return (psi_leaf - psi_leaf_prev) * \
                 self.Cl / self.timestep_sec + self.AL * Eleaf
-        return Jsl
 
     def update_stem_wp(self, krst, psi_soil_prev, Jsl, psi_stem_prev):
-        # Following Xu et al, see Appendix + code
-        #
-        # Reference:
-        # ==========
-        # * Xu, X., Medvigy, D., Powers, J. S., Becknell, J. M. and Guan, K.
-        #   (2016), Diversity in plant hydraulic traits explains seasonal and
-        #    inter-annual variations of vegetation dynamics in seasonally dry
-        #    tropical forests. New Phytol, 212: 80–95. doi:10.1111/nph.14009.
-        #
+        """
+        Calculate the flux from the stem to the leaf = change in leaf storage
+        plus transpiration
+
+        Parameters:
+        -----------
+        krst : float
+            leaf water potential, MPa
+        psi_soil_prev : float
+            soil water potential from the previous timestep, MPa
+        Jsl : float
+            flux from stem to the leaf
+        psi_stem_prev : float
+            stem water potential from the previous timestep, MPa
+
+        Returns:
+        -------
+        psi_stem : float
+            new stem water potential from the previous timestep, MPa
+
+        References:
+        -----------
+        * Xu et al. (2016) New Phytol, 212: 80–95. doi:10.1111/nph.14009; see
+          appendix and code
+        """
         bp = (self.AL * 2.0 * krst * psi_soil_prev - Jsl) / self.Cs
         ap = -(self.AL * 2.0 * krst / self.Cs)
         psi_stem = ((ap * psi_stem_prev + bp) * \
                     np.exp(ap * self.timestep_sec)-bp) / ap
 
         return psi_stem
-
-    def calc_flux_soil_to_stem(self, psi_stem, psi_stem_prev, Jsl):
-        return (psi_stem - psi_stem_prev) * self.Cs / self.timestep_sec + Jsl
 
     def update_sw_bucket(self, precip, water_loss, sw_prev):
         """
@@ -409,7 +446,6 @@ class Desica(object):
         -------
         sw : float
             new volumetric soil water (m3 m-3)
-
         """
         M_2_MM = 1E03
         delta_sw = precip - (water_loss * 1E-06 * 18.0 * self.timestep_sec)
