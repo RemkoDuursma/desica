@@ -99,11 +99,11 @@ class Desica(object):
 
             # Stop the simulation if we've died, i.e. reached P88
             if self.stop_dead:
-                plc = self.calc_plc(out.kp[i])
+                plc = self.calc_plc(out.kplant[i])
                 if plc > self.plc_dead:
                     break
 
-        out["plc"] = self.calc_plc(out.kp)
+        out["plc"] = self.calc_plc(out.kplant)
         # mmol s-1
         out["Eplant"] = self.AL * out.Eleaf
         out["t"] = np.arange(1, n+1)
@@ -137,7 +137,7 @@ class Desica(object):
         out.psi_soil[0] = self.calc_swp(self.sw0)
         out.Eleaf[0] = 0.0
 
-        # soil-to-root hydraulic conductance (mmol m-2 s-1 MPa-1)
+        # soil hydraulic conductance (mmol m-2 s-1 MPa-1)
         out.ksoil[0] = self.calc_ksoil(out.psi_soil[0])
 
         return n, out
@@ -159,8 +159,8 @@ class Desica(object):
         dummy = np.ones(len(met)) * np.nan
         out = pd.DataFrame({'Eleaf':dummy, 'psi_leaf':dummy, 'psi_stem':dummy,
                             'psi_soil':dummy, 'sw':dummy, 'ksoil':dummy,
-                            'kp':dummy, 'Jsl':dummy, 'Jrs':dummy, 'krst':dummy,
-                            'kstl':dummy})
+                            'kplant':dummy, 'Jsl':dummy, 'Jrs':dummy,
+                            'krst':dummy, 'kstl':dummy})
 
         return out
 
@@ -220,18 +220,17 @@ class Desica(object):
             states
         i : int
             current index
-
         """
 
         # Plant hydraulic conductance (mmol m-2 s-1 MPa-1). NB. depends on stem
         # water potential from the previous timestep.
-        out.kp[i] = self.kp_sat * self.fsig_hydr(out.psi_stem[i-1])
+        out.kplant[i] = self.kp_sat * self.fsig_hydr(out.psi_stem[i-1])
 
         # Conductance from soil to stem water store (mmol m-2 s-1 MPa-1)
-        out.krst[i] = 1.0 / (1.0 / out.ksoil[i-1] + 1.0 / (2.0 * out.kp[i]))
+        out.krst[i] = 1.0 / (1.0 / out.ksoil[i-1] + 1.0 / (2.0 * out.kplant[i]))
 
         # Conductance from stem water store to leaf (mmol m-2 s-1 MPa-1)
-        out.kstl[i] = 2.0 * out.kp[i]
+        out.kstl[i] = 2.0 * out.kplant[i]
 
     def calc_swp(self, sw):
         """
