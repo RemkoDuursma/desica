@@ -4,3 +4,5 @@
 .Rproj.user
 *.rds
 *.xlsx
+python/__pycache__
+python/*.pdf
