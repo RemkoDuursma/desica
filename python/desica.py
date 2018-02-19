@@ -138,7 +138,7 @@ class Desica(object):
         out.Eleaf[0] = 0.0
 
         # soil-to-root hydraulic conductance (mmol m-2 s-1 MPa-1)
-        out.ks[0] = self.calc_ksoil(out.psi_soil[0])
+        out.ksoil[0] = self.calc_ksoil(out.psi_soil[0])
 
         return n, out
 
@@ -158,7 +158,7 @@ class Desica(object):
         """
         dummy = np.ones(len(met)) * np.nan
         out = pd.DataFrame({'Eleaf':dummy, 'psi_leaf':dummy, 'psi_stem':dummy,
-                            'psi_soil':dummy, 'sw':dummy, 'ks':dummy,
+                            'psi_soil':dummy, 'sw':dummy, 'ksoil':dummy,
                             'kp':dummy, 'Jsl':dummy, 'Jrs':dummy, 'krst':dummy,
                             'kstl':dummy})
 
@@ -177,7 +177,7 @@ class Desica(object):
         # Don't add gmin, instead use it as the lower boundary
         gsw = max(self.gmin, self.mol_2_mmol * gsw)
 
-        # Leaf transpiration assuming perfect coupling (mmol m-2 s-1)
+        # Leaf transpiration assuming perfect coupling, mmol m-2 s-1
         out.Eleaf[i] = gsw * (met.vpd[i] / met.press[i])
 
         out.psi_leaf[i] = self.calc_lwp(out.kstl[i], out.psi_stem[i-1],
@@ -204,7 +204,7 @@ class Desica(object):
         out.psi_soil[i] = self.calc_swp(out.sw[i])
 
         # Update soil-to-root hydraulic conductance (mmol m-2 s-1 MPa-1)
-        out.ks[i] = self.calc_ksoil(out.psi_soil[i])
+        out.ksoil[i] = self.calc_ksoil(out.psi_soil[i])
 
         return out
 
@@ -227,7 +227,7 @@ class Desica(object):
         out.kp[i] = self.kp_sat * self.fsig_hydr(out.psi_stem[i-1])
 
         # Conductance from soil to stem water store (mmol m-2 s-1 MPa-1)
-        out.krst[i] = 1.0 / (1.0 / out.ks[i-1] + 1.0 / (2.0 * out.kp[i]))
+        out.krst[i] = 1.0 / (1.0 / out.ksoil[i-1] + 1.0 / (2.0 * out.kp[i]))
 
         # Conductance from stem water store to leaf (mmol m-2 s-1 MPa-1)
         out.kstl[i] = 2.0 * out.kp[i]
@@ -317,7 +317,7 @@ class Desica(object):
         p = (P / PX)**((PX * self.s50) / V)
 
         # relative conductance (K/Kmax) as a funcion of xylem pressure
-        relk = (1. - X / 100.)**p
+        relk = (1. - 50. / 100.)**p
 
         return (relk)
 
