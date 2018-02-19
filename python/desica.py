@@ -159,7 +159,7 @@ class Desica(object):
         dummy = np.ones(len(met)) * np.nan
         out = pd.DataFrame({'Eleaf':dummy, 'psi_leaf':dummy, 'psi_stem':dummy,
                             'psi_soil':dummy, 'sw':dummy, 'ksoil':dummy,
-                            'kplant':dummy, 'Jsl':dummy, 'Jrs':dummy,
+                            'kplant':dummy, 'flux_to_leaf':dummy, 'flux_to_stem':dummy,
                             'krst':dummy, 'kstl':dummy})
 
         return out
@@ -185,17 +185,20 @@ class Desica(object):
 
         # Flux from stem to leaf (mmol s-1) = change in leaf storage,
         # plus transpiration
-        out.Jsl[i] = self.calc_flux_to_leaf(out.psi_leaf[i], out.psi_leaf[i-1],
-                                            out.Eleaf[i])
+        out.flux_to_leaf[i] = self.calc_flux_to_leaf(out.psi_leaf[i],
+                                                     out.psi_leaf[i-1],
+                                                     out.Eleaf[i])
 
         # Update stem water potential
         out.psi_stem[i] = self.update_stem_wp(out.krst[i], out.psi_soil[i-1],
-                                              out.Jsl[i], out.psi_stem[i-1])
+                                              out.flux_to_leaf[i],
+                                              out.psi_stem[i-1])
 
-        out.Jrs[i] = self.calc_flux_to_stem(out.psi_stem[i], out.psi_stem[i-1],
-                                            out.Jsl[i])
+        out.flux_to_stem[i] = self.calc_flux_to_stem(out.psi_stem[i],
+                                                     out.psi_stem[i-1],
+                                                     out.flux_to_leaf[i])
 
-        out.sw[i] = self.update_sw_bucket(met.precip[i], out.Jrs[i],
+        out.sw[i] = self.update_sw_bucket(met.precip[i], out.flux_to_stem[i],
                                           out.sw[i-1])
 
         # Update soil water potential
@@ -228,60 +231,6 @@ class Desica(object):
 
         # Conductance from stem water store to leaf (mmol m-2 s-1 MPa-1)
         out.kstl[i] = 2.0 * out.kplant[i]
-
-    def calc_swp(self, sw):
-        """
-        Calculate the soil water potential (MPa). The params The parameters b
-        and psi_e are estimated from a typical soil moisture release function.
-
-        Parameters:
-        -----------
-        sw : object
-            volumetric soil water content (m3 m-3)
-
-        Returns:
-        -----------
-        psi_soil : float
-            soil water potential, MPa
-
-        References:
-        -----------
-        * Duursma et al. (2008) Tree Physiology 28, 265–276, eqn 10
-        """
-        return self.psi_e * (sw / self.theta_sat)**-self.b
-
-    def calc_ksoil(self, psi_soil):
-        """
-        Calculate soil hydraulic conductance (mol m-1 s-1 MPa-1)
-
-        Parameters:
-        -----------
-        sw : object
-            volumetric soil water content (m3 m-3)
-
-        Returns:
-        --------
-        psi_swp : float
-            soil water potential, MPa
-
-        References:
-        -----------
-        * Duursma et al. (2008) Tree Physiology 28, 265–276, eqn 9, 8, 7
-        """
-
-        # A simple equation relating Ks to psi_s is given by (Campbell 1974)
-        Ks = self.Ksat * (self.psi_e / psi_soil)**(2.0 + 3.0 / self.b)
-        if isclose(psi_soil, 0.0):
-            Ks = self.Ksat
-
-        # the radius of a cylinder of soil to which the root has access, n
-        rcyl = 1.0 / np.sqrt(np.pi * self.Lv)
-
-        # root length index, m root m-3 soil surface
-        Rl = self.Lv * self.soil_depth
-        Ksoil = (Rl / self.lai) * 2. * np.pi * Ks / np.log(rcyl / self.rroot)
-
-        return Ksoil
 
     def fsig_hydr(self, psi_stem_prev):
         """
@@ -327,11 +276,11 @@ class Desica(object):
         kstl : float
             blah
         psi_stem_prev : float
-            blah
+            stem water potential from the previous timestep, MPa
         psi_leaf_prev : float
-            blah
+            leaf water potential from the previous timestep, MPa
         Eleaf : float
-            blah
+            transpiration, mmol m-2 s-1
 
         Returns:
         --------
@@ -351,10 +300,31 @@ class Desica(object):
 
         return psi_leaf
 
-    def calc_flux_to_stem(self, psi_stem, psi_stem_prev, Jsl):
+    def calc_swp(self, sw):
+        """
+        Calculate the soil water potential (MPa). The params The parameters b
+        and psi_e are estimated from a typical soil moisture release function.
+
+        Parameters:
+        -----------
+        sw : object
+            volumetric soil water content (m3 m-3)
+
+        Returns:
+        -----------
+        psi_soil : float
+            soil water potential, MPa
+
+        References:
+        -----------
+        * Duursma et al. (2008) Tree Physiology 28, 265–276, eqn 10
+        """
+        return self.psi_e * (sw / self.theta_sat)**-self.b
+
+    def calc_flux_to_stem(self, psi_stem, psi_stem_prev, flux_to_leaf):
         """
         Calculate the flux from the soil to the stem, i.e. the root water
-        uptake (mmol s-1) = change in stem storage plus Jsl
+        uptake (mmol s-1) = change in stem storage plus flux_to_leaf
 
         Parameters:
         -----------
@@ -362,15 +332,16 @@ class Desica(object):
             stem water potential, MPa
         psi_stem_prev : float
             stem water potential from the previous timestep, MPa
-        Jsl : float
+        flux_to_leaf : float
             flux of water fromt he stem to leaf
 
         Returns:
         -------
-        Jrs : float
+        flux_to_stem : float
             flux from soil to the stem
         """
-        return (psi_stem - psi_stem_prev) * self.Cs / self.timestep_sec + Jsl
+        return (psi_stem - psi_stem_prev) * \
+                self.Cs / self.timestep_sec + flux_to_leaf
 
     def calc_flux_to_leaf(self, psi_leaf, psi_leaf_prev, Eleaf):
         """
@@ -388,13 +359,13 @@ class Desica(object):
 
         Returns:
         -------
-        Jsl : float
+        flux_to_leaf : float
             flux from stem to the leaf
         """
         return (psi_leaf - psi_leaf_prev) * \
                 self.Cl / self.timestep_sec + self.AL * Eleaf
 
-    def update_stem_wp(self, krst, psi_soil_prev, Jsl, psi_stem_prev):
+    def update_stem_wp(self, krst, psi_soil_prev, flux_to_leaf, psi_stem_prev):
         """
         Calculate the flux from the stem to the leaf = change in leaf storage
         plus transpiration
@@ -405,7 +376,7 @@ class Desica(object):
             leaf water potential, MPa
         psi_soil_prev : float
             soil water potential from the previous timestep, MPa
-        Jsl : float
+        flux_to_leaf : float
             flux from stem to the leaf
         psi_stem_prev : float
             stem water potential from the previous timestep, MPa
@@ -420,7 +391,7 @@ class Desica(object):
         * Xu et al. (2016) New Phytol, 212: 80–95. doi:10.1111/nph.14009; see
           appendix and code
         """
-        bp = (self.AL * 2.0 * krst * psi_soil_prev - Jsl) / self.Cs
+        bp = (self.AL * 2.0 * krst * psi_soil_prev - flux_to_leaf) / self.Cs
         ap = -(self.AL * 2.0 * krst / self.Cs)
         psi_stem = ((ap * psi_stem_prev + bp) * \
                     np.exp(ap * self.timestep_sec)-bp) / ap
@@ -503,6 +474,38 @@ class Desica(object):
 
         return fw
 
+    def calc_ksoil(self, psi_soil):
+        """
+        Calculate soil hydraulic conductance (mol m-1 s-1 MPa-1)
+
+        Parameters:
+        -----------
+        sw : object
+            volumetric soil water content (m3 m-3)
+
+        Returns:
+        --------
+        psi_swp : float
+            soil water potential, MPa
+
+        References:
+        -----------
+        * Duursma et al. (2008) Tree Physiology 28, 265–276, eqn 9, 8, 7
+        """
+
+        # A simple equation relating Ks to psi_s is given by (Campbell 1974)
+        Ks = self.Ksat * (self.psi_e / psi_soil)**(2.0 + 3.0 / self.b)
+        if isclose(psi_soil, 0.0):
+            Ks = self.Ksat
+
+        # the radius of a cylinder of soil to which the root has access, n
+        rcyl = 1.0 / np.sqrt(np.pi * self.Lv)
+
+        # root length index, m root m-3 soil surface
+        Rl = self.Lv * self.soil_depth
+        Ksoil = (Rl / self.lai) * 2. * np.pi * Ks / np.log(rcyl / self.rroot)
+
+        return Ksoil
 
 
 def make_plot(out, timestep=15):
