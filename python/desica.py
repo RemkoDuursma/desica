@@ -51,7 +51,7 @@ class Desica(object):
         self.kp_sat = kp_sat # plant saturated hydraulic conductance (mmol m-2 s-1 MPa-1)
         self.p50 = p50 # xylem pressure inducing 50% loss of hydraulic conductivity due to embolism, MPa
         self.psi_f = psi_f # reference potential for Tuzet model, MPa
-        self.s50 = s50
+        self.s50 = s50 # is slope of the curve at P50 used in weibull model, % MPa-1
         self.gmin = gmin # minimum stomatal conductance, mmol m-2 s-1
         self.psi_leaf0 = psi_leaf0 # initial leaf water potential, MPa
         self.psi_stem0 = psi_stem0 # initial stem water potential, MPa
@@ -180,10 +180,8 @@ class Desica(object):
         # Leaf transpiration assuming perfect coupling (mmol m-2 s-1)
         out.Eleaf[i] = gsw * (met.vpd[i] / met.press[i])
 
-        out.psi_leaf[i] = self.calc_leaf_water_potential(out.kstl[i],
-                                                          out.psi_stem[i-1],
-                                                          out.psi_leaf[i-1],
-                                                          out.Eleaf[i])
+        out.psi_leaf[i] = self.calc_lwp(out.kstl[i], out.psi_stem[i-1],
+                                        out.psi_leaf[i-1], out.Eleaf[i])
 
         # Flux from stem to leaf (mmol s-1) = change in leaf storage,
         # plus transpiration
@@ -274,7 +272,6 @@ class Desica(object):
         * Duursma et al. (2008) Tree Physiology 28, 265–276, eqn 9, 8, 7
         """
 
-
         # A simple equation relating Ks to psi_s is given by (Campbell 1974)
         Ks = self.Ksat * (self.psi_e / psi_soil)**(2.0 + 3.0 / self.b)
         if isclose(psi_soil, 0.0):
@@ -289,18 +286,66 @@ class Desica(object):
 
         return Ksoil
 
-    def fsig_hydr(self, P):
-        X = 50.
-        P = np.abs(P)
+    def fsig_hydr(self, psi_stem_prev):
+        """
+        Calculate the relative conductance as a function of xylem pressure
+        using the Weibull (sigmoidal) model based on values of P50
+        and S50 which are obtained by fitting curves to measured data.
+
+        Higher values for s50 indicate a steeper response to xylem pressure.
+
+        Parameters:
+        -----------
+        psi_stem_prev : object
+            stem water potential from previous timestep, MPa
+
+        Returns:
+        --------
+        relk : float
+            relative conductance (K/Kmax) as a funcion of xylem pressure (-)
+
+        References:
+        -----------
+        * Duursma & Choat(2017). Journal of Plant Hydraulics, 4, e002.
+        """
+        # xylem pressure
+        P = np.abs(psi_stem_prev)
+
+        # the xylem pressure (P) x% of the conductivity is lost
         PX = np.abs(self.p50)
-        V = (X - 100.) * np.log(1.0 - X / 100.)
+        V = (50.0 - 100.) * np.log(1.0 - 50. / 100.)
         p = (P / PX)**((PX * self.s50) / V)
+
+        # relative conductance (K/Kmax) as a funcion of xylem pressure
         relk = (1. - X / 100.)**p
 
         return (relk)
 
-    def calc_leaf_water_potential(self, kstl, psi_stem_prev, psi_leaf_prev,
-                                   Eleaf):
+    def calc_lwp(self, kstl, psi_stem_prev, psi_leaf_prev, Eleaf):
+        """
+        Calculate leaf water potential, MPa
+
+        Parameters:
+        -----------
+        kstl : float
+            blah
+        psi_stem_prev : float
+            blah
+        psi_leaf_prev : float
+            blah
+        Eleaf : float
+            blah
+
+        Returns:
+        --------
+        psi_leaf : float
+            leaf water potential, MPa
+
+        References:
+        -----------
+        * Xu et al. (2016) New Phytol, 212: 80–95. doi:10.1111/nph.14009; see
+          appendix and code
+        """
         # Following Xu et al, see Appendix + code
         #
         # Reference:
