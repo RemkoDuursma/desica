@@ -197,6 +197,7 @@ class Desica(object):
         out.Jrs[i] = self.calc_flux_soil_to_stem(out.psi_stem[i],
                                                  out.psi_stem[i-1], out.Jsl[i])
 
+        # Update water balance
         out.sw[i] = self.update_sw_bucket(met.precip[i], out.Jrs[i],
                                           out.sw[i-1])
 
