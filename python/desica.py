@@ -326,7 +326,7 @@ class Desica(object):
 
     def calc_flux_to_stem(self, psi_stem, psi_stem_prev, flux_to_leaf):
         """
-        Calculate the flux from the soil to the stem, i.e. the root water
+        Calculate the flux from the root to the stem, i.e. the root water
         uptake (mmol s-1) = change in stem storage plus flux_to_leaf
 
         Parameters:
@@ -341,7 +341,7 @@ class Desica(object):
         Returns:
         -------
         flux_to_stem : float
-            flux from soil to the stem
+            flux from soil to the stem, mol s-1
         """
         return (psi_stem - psi_stem_prev) * \
                 self.Cs / self.timestep_sec + flux_to_leaf
@@ -363,7 +363,7 @@ class Desica(object):
         Returns:
         -------
         flux_to_leaf : float
-            flux from stem to the leaf
+            flux from stem to the leaf, mol s-1
         """
         return (psi_leaf - psi_leaf_prev) * \
                 self.Cl / self.timestep_sec + self.AL * Eleaf
