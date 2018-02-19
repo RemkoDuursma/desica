@@ -152,7 +152,7 @@ if __name__ == "__main__":
     D = Desica(psi_stem0=psi_stem0, AL=AL, p50=p50, psi_f=psi_f, gmin=gmin,
                Cl=Cl, Cs=Cs, F=F, g1=g1, nruns=1, stop_dead=True,
                met_timestep=60.)
-    out = D.main(met)
+    out = D.run_simulation(met)
 
     make_plot(out, time_step)
     plot_swp_sw(out)

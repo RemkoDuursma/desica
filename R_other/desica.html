@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+
+<title></title>
+
+<script type="text/javascript">
+window.onload = function() {
+  var imgs = document.getElementsByTagName('img'), i, img;
+  for (i = 0; i < imgs.length; i++) {
+    img = imgs[i];
+    // center an image if it is the only element of its parent
+    if (img.parentElement.childElementCount === 1)
+      img.parentElement.style.textAlign = 'center';
+  }
+};
+</script>
+
+
+
+<!-- MathJax scripts -->
+<script type="text/javascript" src="https://cdn.bootcss.com/mathjax/2.7.0/MathJax.js?config=TeX-MML-AM_CHTML">
+</script>
+
+
+<style type="text/css">
+body, td {
+   font-family: sans-serif;
+   background-color: white;
+   font-size: 13px;
+}
+
+body {
+  max-width: 800px;
+  margin: auto;
+  padding: 1em;
+  line-height: 20px;
+}
+
+tt, code, pre {
+   font-family: 'DejaVu Sans Mono', 'Droid Sans Mono', 'Lucida Console', Consolas, Monaco, monospace;
+}
+
+h1 {
+   font-size:2.2em;
+}
+
+h2 {
+   font-size:1.8em;
+}
+
+h3 {
+   font-size:1.4em;
+}
+
+h4 {
+   font-size:1.0em;
+}
+
+h5 {
+   font-size:0.9em;
+}
+
+h6 {
+   font-size:0.8em;
+}
+
+a:visited {
+   color: rgb(50%, 0%, 50%);
+}
+
+pre, img {
+  max-width: 100%;
+}
+pre {
+  overflow-x: auto;
+}
+pre code {
+   display: block; padding: 0.5em;
+}
+
+code {
+  font-size: 92%;
+  border: 1px solid #ccc;
+}
+
+code[class] {
+  background-color: #F8F8F8;
+}
+
+table, td, th {
+  border: none;
+}
+
+blockquote {
+   color:#666666;
+   margin:0;
+   padding-left: 1em;
+   border-left: 0.5em #EEE solid;
+}
+
+hr {
+   height: 0px;
+   border-bottom: none;
+   border-top-width: thin;
+   border-top-style: dotted;
+   border-top-color: #999999;
+}
+
+@media print {
+   * {
+      background: transparent !important;
+      color: black !important;
+      filter:none !important;
+      -ms-filter: none !important;
+   }
+
+   body {
+      font-size:12pt;
+      max-width:100%;
+   }
+
+   a, a:visited {
+      text-decoration: underline;
+   }
+
+   hr {
+      visibility: hidden;
+      page-break-before: always;
+   }
+
+   pre, blockquote {
+      padding-right: 1em;
+      page-break-inside: avoid;
+   }
+
+   tr, img {
+      page-break-inside: avoid;
+   }
+
+   img {
+      max-width: 100% !important;
+   }
+
+   @page :left {
+      margin: 15mm 20mm 15mm 10mm;
+   }
+
+   @page :right {
+      margin: 15mm 10mm 15mm 20mm;
+   }
+
+   p, h2, h3 {
+      orphans: 3; widows: 3;
+   }
+
+   h2, h3 {
+      page-break-after: avoid;
+   }
+}
+</style>
+
+
+
+</head>
+
+<body>
+<table><thead>
+<tr>
+<th>Parameter</th>
+<th>Definition</th>
+<th>Units</th>
+</tr>
+</thead><tbody>
+<tr>
+<td>J~rs~</td>
+<td>Root to stem flow</td>
+<td>mol s<sup>-1^</sup></td>
+</tr>
+<tr>
+<td>J~sl~</td>
+<td>Stem to leaf flow</td>
+<td>mol s<sup>-1^</sup></td>
+</tr>
+<tr>
+<td>E~t~</td>
+<td>Transpiration</td>
+<td>mol s<sup>-1^</sup></td>
+</tr>
+<tr>
+<td>c~s~</td>
+<td>Specific stem capacitance</td>
+<td>RWC MPa<sup>-1^</sup></td>
+</tr>
+<tr>
+<td>C~s~</td>
+<td>Absolute stem capacitance</td>
+<td>mol MPa<sup>-1^</sup></td>
+</tr>
+<tr>
+<td>c~l~</td>
+<td>Specific leaf capacitance</td>
+<td>RWC MPa<sup>-1^</sup></td>
+</tr>
+<tr>
+<td>C~l~</td>
+<td>Absolute leaf capacitance</td>
+<td>mol MPa<sup>-1^</sup></td>
+</tr>
+<tr>
+<td>k~S~</td>
+<td>soil to root hydr. conductance</td>
+<td>mol m<sup>-2^</sup> s<sup>-1^</sup> MPa<sup>-1^</sup></td>
+</tr>
+<tr>
+<td>k~P~</td>
+<td>plant hydr. conductance</td>
+<td>mol m<sup>-2^</sup> s<sup>-1^</sup> MPa<sup>-1^</sup></td>
+</tr>
+<tr>
+<td>A~L~</td>
+<td>Plant leaf area</td>
+<td>m<sup>2^</sup></td>
+</tr>
+<tr>
+<td>g~min~</td>
+<td>Minimum conductance</td>
+<td>mol m-2 s-1</td>
+</tr>
+<tr>
+<td>\(\Psi_{st}\)</td>
+<td>stem water potential</td>
+<td>MPa</td>
+</tr>
+<tr>
+<td>\(\Psi_{S}\)</td>
+<td>soil water potential</td>
+<td>MPa</td>
+</tr>
+<tr>
+<td>\(\Psi_{L}\)</td>
+<td>leaf water potential</td>
+<td>MPa</td>
+</tr>
+<tr>
+<td>\(\Psi_{min}\)</td>
+<td>Minimum leaf water potential (turgor loss point)</td>
+<td>MPa</td>
+</tr>
+<tr>
+<td>\(\rho_w\)</td>
+<td>wood density</td>
+<td>kg m<sup>-3^</sup></td>
+</tr>
+<tr>
+<td>\(\rho_s\)</td>
+<td>non-lumen wood density (constant)</td>
+<td>kg m<sup>-3^</sup></td>
+</tr>
+<tr>
+<td>V~s~</td>
+<td>sapwood volume</td>
+<td>m<sup>3^</sup></td>
+</tr>
+</tbody></table>
+
+<p>\[J_{rs} = A_L k_S (\Psi_S - \Psi_{st})\]</p>
+
+<p>\[J_{sl} = A_L k_P (\Psi_{st} - \Psi_L)\]</p>
+
+<p>\[E_t = A_L f(D,PPFD, \Psi_{min}, g_{min}, etc)\]</p>
+
+<p>\[C_s = c_s V_s (1 - \rho_w/\rho_s)\] </p>
+
+<p>\[C_l = c_l A_L f(LMA?)\] </p>
+
+<p>\[\frac{d\Psi_{st}}{dt} = \frac{J_{rs} - J_{sl}}{C_s}\]</p>
+
+<p>\[\frac{d\Psi_{l}}{dt} = \frac{J_{sl} - E_t}{C_s}\]</p>
+
+</body>
+
+</html>

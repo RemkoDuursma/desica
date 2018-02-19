@@ -33,7 +33,8 @@ desica <- function(met=NULL,
                    stopsimdead=TRUE,
                    plcdead=88,
                    mf=NA,
-                   LMA=NA){
+                   LMA=NA,
+                   refill=TRUE){
 
   if(is.null(met)){
     stop("Must provide met dataframe with VPD, Tair, PPFD, precip (optional)")
@@ -68,7 +69,7 @@ desica <- function(met=NULL,
                soilvolume=soilvolume,groundarea=groundarea,
                LAI=LAI,b=b,psie=psie,Ksat=Ksat,
                Lv=Lv,keepwet=keepwet,stopsimdead=stopsimdead,
-               plcdead=plcdead)
+               plcdead=plcdead, refill=refill)
 
 
   for(i in 2:n){
@@ -114,6 +115,9 @@ desica_calc_timestep <- function(met, i, out, pars){
   # Plant hydraulic conductance
   # Note how it depends on previous timestep stem water potential.
   out$kp[i] <- pars$kpsat * fsig_hydr(out$psist[i-1], pars$s50, pars$p50)
+  if(!pars$refill && !is.na(out$kp[i-1])){
+    if(out$kp[i] > out$kp[i-1])out$kp[i] <- out$kp[i-1]
+  }
 
   # from soil to stem pool
   out$krst[i] <- 1 / (1/out$ks[i-1] + 1/(2*out$kp[i]))
