@@ -66,7 +66,7 @@ class Desica(object):
         self.F = F
         self.rroot = rroot # mean radius of water absorbing roots, m
         self.timestep_sec = 60. * self.met_timestep / self.nruns
-
+        self.mol_2_mmol = 1000.0
 
     def run_simulation(self, met=None):
         """
@@ -174,8 +174,8 @@ class Desica(object):
         gsw = self.F.canopy(met.Ca[i], met.tair[i], met.par[i],
                             met.vpd[i], mult)
 
-        # Don't add gmin, instead use it as bottom value.
-        gsw = max(self.gmin, 1000. * gsw)
+        # Don't add gmin, instead use it as the lower boundary
+        gsw = max(self.gmin, self.mol_2_mmol * gsw)
 
         # Leaf transpiration assuming perfect coupling (mmol m-2 s-1)
         out.Eleaf[i] = gsw * (met.vpd[i] / met.press[i])
