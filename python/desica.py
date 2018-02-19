@@ -3,19 +3,12 @@
 """
 Desica model: simple plant hydraulics model with mortality.
 
-Stem water potential follows Xu et al.
-
-Reference:
-==========
-* Xu, X., Medvigy, D., Powers, J. S., Becknell, J. M. and Guan, K.
-  (2016), Diversity in plant hydraulic traits explains seasonal and
-  inter-annual variations of vegetation dynamics in seasonally dry
-  tropical forests. New Phytol, 212: 80–95. doi:10.1111/nph.14009.
+This is a python implementation of Remko's R code.
 
 That's all folks.
 """
 __author__ = "Martin De Kauwe"
-__version__ = "1.0 (23.11.2017)"
+__version__ = "1.0 (19.02.2018)"
 __email__ = "mdekauwe@gmail.com"
 
 import pandas as pd
