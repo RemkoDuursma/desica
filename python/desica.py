@@ -54,7 +54,7 @@ class Desica(object):
         self.gmin = gmin # minimum stomatal conductance, mmol m-2 s-1
         self.psi_leaf0 = psi_leaf0 # initial leaf water potential, MPa
         self.psi_stem0 = psi_stem0 # initial stem water potential, MPa
-        self.theta_sat = theta_sat
+        self.theta_sat = theta_sat # soil water capacity at saturation (m3 m-3)
         self.sw0 = sw0 # initial soil volumetric water content (m3 m-3)
         self.AL = AL # leaf area, m2
         self.lai = AL / self.ground_area
@@ -313,9 +313,9 @@ class Desica(object):
 
         """
         M_2_MM = 1E03
-        saturation = 0.5
         delta_sw = precip - (water_loss * 1E-06 * 18.0 * self.timestep_sec)
-        sw = min(saturation, sw_prev + delta_sw / (self.soil_volume * M_2_MM))
+        sw = min(self.theta_sat, \
+                 sw_prev + delta_sw / (self.soil_volume * M_2_MM))
 
         return sw
 
