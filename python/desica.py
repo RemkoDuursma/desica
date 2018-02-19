@@ -243,6 +243,7 @@ class Desica(object):
             volumetric soil water content (m3 m-3)
 
         Returns:
+        -----------
         psi_swp : float
             soil water potential, MPa
         """
