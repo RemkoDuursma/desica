@@ -6,3 +6,4 @@
 *.xlsx
 python/__pycache__
 python/*.pdf
+*.html
