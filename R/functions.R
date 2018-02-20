@@ -131,7 +131,7 @@ desica_calc_timestep <- function(met, i, out, pars){
   # via the BBmult option in Photosyn)
   p <- Photosyn(VPD=met$VPD[i],
                 gsmodel="BBdefine",
-                g0=0.001,
+                g0=0.0,
                 BBmult=(pars$g1/pars$Ca)*fsig_tuzet(out$psil[i-1], pars$psiv, pars$sf),
                 Tleaf=met$Tair[i],
                 PPFD=met$PPFD[i],
