@@ -5,6 +5,8 @@ date: "23 June 2017"
 output:
   html_document: 
     theme: flatly
+bibliography: references.bib
+csl: global-change-biology.csl
 ---
 
 ```{r setup, include=FALSE}
@@ -20,7 +22,7 @@ Important components of the model are:
 
 - Plant hydraulic conductance depends on xylem water potential via a typical PLC curve
 - Stomatal conductance (g~s~) is modelled via the modified Tuzet model
-- During severe drought, water loss continues due to the minimum conductance ((see here for a review in progress on that)[https://github.com/remkoDuursma/g0paper])
+- During severe drought, water loss continues due to the minimum conductance (g~min~). [See here for a review in progress on g~min~](https://github.com/remkoDuursma/g0paper).
 - The water storage pool is split between the stem water storage, and leaf water storage. For both, the user has to specify the total capacitance of the pools.
 - Xylem water potential is calculated from stem water storage via a simple constant capacitance term (and likewise, for the leaf water pool)
 
@@ -44,7 +46,7 @@ We use the PLC to determine whether the plant is dead or not.
 
 The usual Gardner one-root model (details to be added) is used to calculate the soil conductance.
 
-(@gardner) $$k_S = f(\Psi_S)$$ (@test2) 
+(@gardner) $$k_S = f(\Psi_S)$$
 
 We have soil to root surface ('soil conductance'), the conductance from root surface to the stem water pool (which is assumed to be halfway to the leaves), and the conductance from the stem water pool to the leaves.
 
@@ -139,7 +141,7 @@ At steady-state both following equations will hold,
 
 
 \
-Now it would be possible to solve equations (@dpsildt) and (@dpsisdt) numerically (with a Runge-Kutta integrator or similar), but this is not desirable because a) the computational overhead, b) the headache with implementing a full numerical solution, not to mention the potential instabilities given the various dependencies on water potential.
+Now it would be possible to solve equations (@dpsildt) and (@dpsistdt) numerically (with a Runge-Kutta integrator or similar), but this is not desirable because a) the computational overhead, b) the headache with implementing a full numerical solution, not to mention the potential instabilities given the various dependencies on water potential.
 
 \
 Instead, we follow @xu2016 and simplify the solution of the system of equations in the following way. First, instead of solving the equations inside every timestep, we use $\Psi_L$, $\Psi_{st}$ and $\Psi_S$ from the previous timestep to drive the submodels, namely equations (@tuzet), (@gardner) and (@weibull). That way we can estimate E~t~ for the current timestep without solving the system of equations for the water potential dynamics. 
@@ -149,7 +151,7 @@ Next, we can derive a simplified equation for the change in leaf and stem water 
 
 (@dpsil2) $$\Psi_L(t) = \big[ (a \cdot \Psi_L(t-1) + b) \cdot e^{(a \cdot \Delta t) - b)} \big] /a$$
 
-Where $\Psi_L(t)$ is the solution for the current timestep (using the value from the previous timestep, *t* - 1), $\Delta t$ is the timestep. 
+Where $\Psi_L(t)$ is the solution for the current timestep (using the value from the previous timestep, *t* - 1), $\Delta t$ is the timestep, and $a$ and $b$ are parameter combinations (capacitance, water potentials, conductances). I could write out these equations or you could look at the code!
 
 \
 An equivalent equation can be written for (@dpsistdt) and (@jrs). 
@@ -180,4 +182,7 @@ The above solution for the water potentials works very well for shorter timestep
 |  $\Psi_{S}$ | soil water potential | MPa |
 |  $\Psi_{L}$ | leaf water potential | MPa |
 
+
+
+# References
 
