@@ -12,41 +12,49 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
+# Introduction
+
+The desica model is a fairly simple implementation of a soil-plant-atmosphere model, with the only objective to simulate the dynamics of plant desiccation during severe drought. To do so, the model keeps track of a stem water storage pool. Water is drawn from this pool on a daily basis, but normally the pool is replenished via root water uptake. During severe drought, however, root water uptake ceases (due to the rapid decline in soil-to-root conductance), leading to a gradual decline in the stem water pool. 
+
+Important components of the model are:
+
+- Plant hydraulic conductance depends on xylem water potential via a typical PLC curve
+- Stomatal conductance (g~s~) is modelled via the modified Tuzet model
+- During severe drought, water loss continues due to the minimum conductance ((see here for a review in progress on that)[https://github.com/remkoDuursma/g0paper])
+- The water storage pool is split between the stem water storage, and leaf water storage. For both, the user has to specify the total capacitance of the pools.
+- Xylem water potential is calculated from stem water storage via a simple constant capacitance term (and likewise, for the leaf water pool)
+
+
+
 # Hydraulics of the soil-to-leaf pathway
 
 Total plant conductance (for a well hydrated plan) is given as an input (in the usual leaf area specific hydraulic conductance), $k_L(0)$, and depends on stem water potential ($\Psi_x$) via the Weibull equation (see @duursma2017).
 
 
-
-
-$$k_L(\Psi_x) = k_L(0) \cdot (1 - x/100)^p$$
+(@weibull) $$k_L(\Psi_x) = k_L(0) \cdot (1 - x/100)^p$$
 $$p = (\Psi_x/P_x)^{(P_xS_x)/V}$$
 $$V = (x-100)log(1-x/100)$$
 
 The 'percent loss conductance' is calculated as,
 
-$$PLC = 100 \cdot (1 - k_L(\Psi_x)/k_L(0))$$
+(@plc) $$PLC = 100 \cdot (1 - k_L(\Psi_x)/k_L(0))$$
 
 We use the PLC to determine whether the plant is dead or not.
 
 
 The usual Gardner one-root model (details to be added) is used to calculate the soil conductance.
 
-$$k_S = f(\Psi_S)$$
+(@gardner) $$k_S = f(\Psi_S)$$ (@test2) 
 
+We have soil to root surface ('soil conductance'), the conductance from root surface to the stem water pool (which is assumed to be halfway to the leaves), and the conductance from the stem water pool to the leaves.
 
-We have soil to root surface ('soil conductance'), root surface to stem water storage (which is assumed to be halfway to the leaves), and stem water storage to leaves.  
+Then we have (since the conductances are in series):
 
-Then we have the conductance from soil to stem water pool (since the conductances are in series):
-
-$$k_{rst} = 1 / (1/k_S + 1/(2 \cdot k_L))$$
-
+(@krst) $$k_{rst} = 1 / (1/k_S + 1/(2 \cdot k_L))$$
 
 and the conductance from the stem water pool to the leaves (since we assumed the water pool is halfway up the stem),
 
-$$k_{stl} = 2 \cdot k_L$$
-
-
+(@kstl) $$k_{stl} = 2 \cdot k_L$$
 
 
 
@@ -54,19 +62,19 @@ $$k_{stl} = 2 \cdot k_L$$
 
 We use a modified Tuzet model of stomatal conductance, which is given by:
 
-$$g_s = g_0 + g_1 \cdot \frac{A_n}{C_a} \cdot f(\Psi_L) $$
+(@tuzet) $$g_s = g_0 + g_1 \cdot \frac{A_n}{C_a} \cdot f(\Psi_L) $$
 
 Net photosynthesis (A~n~) and g~s~ are calculated by coupling this equation to the Farquhar model, and the diffusion constraint, as usual [@duursma2015].
 
 But here we set g~0~ to zero, and instead use a minimum function:
 
-$$g_s = \min(g_s, g_{min})$$
+(@gmin) $$g_s = \min(g_s, g_{min})$$
 where g~min~ is the minimum leaf conductance (the conductance of a detached leaf).
 
 The water potential function ($f(\Psi_L)$) is a sigmoid:
 
 
-$$f(\Psi_L) = (1 + e^{s_f \Psi_v}) / (1 + e^{s_f (\Psi_v - \Psi_L)})$$
+(@fpsil) $$f(\Psi_L) = (1 + e^{s_f \Psi_v}) / (1 + e^{s_f (\Psi_v - \Psi_L)})$$
 
 The response of g~s~ to leaf water potential is illustrated in Fig. 1.
 
@@ -107,17 +115,47 @@ lines(psils, p$GS, lty=5)
 
 # Fluxes
 
+\
 We do not assume steady-state of the water flux, instead it is solved numerically every timestep by taking into account the capacitance of the stem water pool (C~s~) and the leaf water pool (C~l~). Because there is no steady state, we have to solve two fluxes: the flux of water from stem to leaves (J~sl~), and the flux of water from soil to the stem (J~rs~). 
 
+\
 To greatly simplify the solution, we use $\Psi_L$ and $\Psi_{st}$ from the previous timestep to find J~sl~ and J~rs~. With $\Psi_L$, we can also calculate the transpiration rate (the flux of water from leaves to the atmosphere), E~L~. In this simple version of the model, no leaf-to-canopy scaling is done, so total plant transpiration is simply $E_t = E_L \cdot A_L$, where A~L~ is plant leaf area (m^2^).
 
+\
 Now we can write the dynamic equation for the change in leaf water potential per unit time, as a function of the net flux (J~sl~ is water transported into the leaf pool, E~t~ water evaporating from the leaf pool, both in units of mol t^-1^), and the capacitance (mol MPa^-1^).
 
-$$\frac{d\Psi_{l}}{dt} = \frac{J_{sl} - E_t}{C_l}$$
+(@dpsildt) $$\frac{d\Psi_{l}}{dt} = \frac{J_{sl} - E_t}{C_l}$$
 
 A similar equation can be written for the flux into and out of the stem pool:
 
-$$\frac{d\Psi_{st}}{dt} = \frac{J_{rs} - J_{sl}}{C_s}$$
+(@dpsistdt) $$\frac{d\Psi_{st}}{dt} = \frac{J_{rs} - J_{sl}}{C_s}$$
+
+
+At steady-state both following equations will hold, 
+
+(@jsl) $$J_{sl} = A_L k_P (\Psi_{st} - \Psi_L)$$
+
+(@jrs) $$J_{rs} = A_L k_S (\Psi_S - \Psi_{st})$$
+
+
+\
+Now it would be possible to solve equations (@dpsildt) and (@dpsisdt) numerically (with a Runge-Kutta integrator or similar), but this is not desirable because a) the computational overhead, b) the headache with implementing a full numerical solution, not to mention the potential instabilities given the various dependencies on water potential.
+
+\
+Instead, we follow @xu2016 and simplify the solution of the system of equations in the following way. First, instead of solving the equations inside every timestep, we use $\Psi_L$, $\Psi_{st}$ and $\Psi_S$ from the previous timestep to drive the submodels, namely equations (@tuzet), (@gardner) and (@weibull). That way we can estimate E~t~ for the current timestep without solving the system of equations for the water potential dynamics. 
+
+\
+Next, we can derive a simplified equation for the change in leaf and stem water potentials from the previous timestep, taking into account the capacitance. @xu2016 derived these equations by combining (@dpsildt) with (@jsl) (it escapes me at the moment why we can combine the steady-state equation with the dynamic equation, but I used to understand why!), which gives (after some rearranging):
+
+(@dpsil2) $$\Psi_L(t) = \big[ (a \cdot \Psi_L(t-1) + b) \cdot e^{(a \cdot \Delta t) - b)} \big] /a$$
+
+Where $\Psi_L(t)$ is the solution for the current timestep (using the value from the previous timestep, *t* - 1), $\Delta t$ is the timestep. 
+
+\
+An equivalent equation can be written for (@dpsistdt) and (@jrs). 
+
+\
+The above solution for the water potentials works very well for shorter timesteps, up to about 10-15 minutes (but some oscillations can still occur). 
 
 
 
@@ -125,32 +163,14 @@ $$\frac{d\Psi_{st}}{dt} = \frac{J_{rs} - J_{sl}}{C_s}$$
 
 
 
-$$J_{rs} = A_L k_S (\Psi_S - \Psi_{st})$$
-
-$$J_{sl} = A_L k_P (\Psi_{st} - \Psi_L)$$
-
-
-$$C_s = c_s V_s (1 - \rho_w/\rho_s)$$ 
-
-$$C_l = c_l A_L f(LMA?)$$ 
-
-
-
-
-
-
-
-
-
+**Table 1**. Symbols and definitions.
 
 | Parameter |  Definition         | Units     |
 |-----------|-------------------- | --------- |
 | J~rs~     | Root to stem flow   | mol s^-1^   |
 | J~sl~     | Stem to leaf flow   | mol s^-1^   |
 | E~t~      | Transpiration       | mol s^-1^   |
-| c~s~      | Specific stem capacitance | RWC MPa^-1^ |
 | C~s~      | Absolute stem capacitance | mol MPa^-1^ |
-| c~l~      | Specific leaf capacitance | RWC MPa^-1^ |
 | C~l~      | Absolute leaf capacitance | mol MPa^-1^ |
 | k~S~      | soil to root hydr. conductance  | mol m^-2^ s^-1^ MPa^-1^ |
 | k~P~      | plant hydr. conductance | mol m^-2^ s^-1^ MPa^-1^ |
@@ -159,9 +179,5 @@ $$C_l = c_l A_L f(LMA?)$$
 |  $\Psi_{st}$ | stem water potential | MPa |
 |  $\Psi_{S}$ | soil water potential | MPa |
 |  $\Psi_{L}$ | leaf water potential | MPa |
-| $\Psi_{min}$ | Minimum leaf water potential (turgor loss point) | MPa |
-| $\rho_w$   | wood density | kg m^-3^ |
-| $\rho_s$   | non-lumen wood density (constant) | kg m^-3^ |
-| V~s~       | sapwood volume | m^3^ |
 
 
