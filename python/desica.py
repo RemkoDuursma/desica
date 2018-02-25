@@ -3,6 +3,17 @@
 """
 Desica model: simple plant hydraulics model with mortality.
 
+Key features:
+- plant hydraulic conductance depends on xylem water potential, defined by a
+  PLC curve
+- Stomatal conductance is modelled via the modified Tuzet model.
+- During severe drought, root water uptake ceases (due to the decline in
+  soil-to-root conductance), but water loss continues due to the minimum
+  conductance (gmin). This leads to a gradual decline in the stem water pool.
+- The water storage pool is split between the stem and leaf water storage pools
+- Xylem water potential is calculated from stem water storage via a simple
+  constant capacitance term (and likewise, for the leaf water pool).
+
 This is a python implementation of Remko's R code.
 
 That's all folks.
