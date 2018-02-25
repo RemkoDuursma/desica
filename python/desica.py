@@ -27,8 +27,11 @@ This is a python implementation of Remko's R code.
 
 References:
 ----------
-* Duursma & Choat (2017). Journal of Plant Hydraulics, 4, e002.
-* Xu et al. (2016) New Phytol, 212: 80–95. doi:10.1111/nph.14009
+* Duursma & Choat (2017). Fitplc - an R package to fit hydraulic vulnerability
+  curves. Journal of Plant Hydraulics, 4, e002.
+* Xu X, Medvigy D, Powers JS, Becknell JM, Guan K (2016) Diversity in plant
+  hydraulic traits explains seasonal and inter-annual variations of vegetation
+  dynamics in seasonally dry tropical forests. New Phytologist, 212, 80–95.
 
 That's all folks.
 """
