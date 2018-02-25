@@ -179,6 +179,7 @@ class Desica(object):
 
         self.calc_conductances(out, i)
 
+        # modified Tuzet model of stomatal conductance
         mult = (self.g1 / met.Ca[i]) * self.fsig_tuzet(out.psi_leaf[i-1])
 
         # Calculate photosynthesis and stomatal conductance
