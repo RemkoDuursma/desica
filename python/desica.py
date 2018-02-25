@@ -238,11 +238,16 @@ class Desica(object):
         # water potential from the previous timestep.
         out.kplant[i] = self.kp_sat * self.fsig_hydr(out.psi_stem[i-1])
 
-        # Conductance from soil to stem water store (mmol m-2 s-1 MPa-1)
-        out.ksoil2stem[i] = 1.0 / (1.0 / out.ksoil[i-1] + \
-                            1.0 / (2.0 * out.kplant[i]))
+        # Conductance from root surface to the stem water pool (assumed to be
+        # halfway to the leaves)
+        kroot2stem = 2.0 * out.kplant[i]
 
-        # Conductance from stem water store to leaf (mmol m-2 s-1 MPa-1)
+        # Conductance from soil to stem water store (mmol m-2 s-1 MPa-1)
+        # (conductances combined in series)
+        out.ksoil2stem[i] = 1.0 / (1.0 / out.ksoil[i-1] + 1.0 / kroot2stem)
+
+        # Conductance from stem water store to the leaves (mmol m-2 s-1 MPa-1)
+        # assumning the water pool is halfway up the stem
         out.kstem2leaf[i] = 2.0 * out.kplant[i]
 
     def fsig_hydr(self, psi_stem_prev):
@@ -265,7 +270,7 @@ class Desica(object):
 
         References:
         -----------
-        * Duursma & Choat(2017). Journal of Plant Hydraulics, 4, e002.
+        * Duursma & Choat (2017). Journal of Plant Hydraulics, 4, e002.
         """
         # xylem pressure
         P = np.abs(psi_stem_prev)
