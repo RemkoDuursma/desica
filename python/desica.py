@@ -13,8 +13,22 @@ Key features:
 - The water storage pool is split between the stem and leaf water storage pools
 - Xylem water potential is calculated from stem water storage via a simple
   constant capacitance term (and likewise, for the leaf water pool).
+- Model solves two fluxes: flux of water from the stem to the leaves and the
+  flux of water from the soil to the stem numerically in every timestep. To
+  simply this process we use psi_leaf and psi_stem from the previous timestep
+  to find the flux_to_leaf and the flux_to_stem
+- Leaves are assumed to be perfectly coupled, so transpiration = Eleaf * Al,
+  where Al is plant area (m2).
+- Approach follows Xu to solve the psi_leaf, psi_stem without the need for a
+  numerical integrator. This method works well at short timesteps (up to about)
+  10 to 15 mins (but some ocillations may still occur).
 
 This is a python implementation of Remko's R code.
+
+References:
+----------
+* Duursma & Choat (2017). Journal of Plant Hydraulics, 4, e002.
+* Xu et al. (2016) New Phytol, 212: 80–95. doi:10.1111/nph.14009
 
 That's all folks.
 """
@@ -94,7 +108,9 @@ class Desica(object):
             out = self.run_timestep(i, met, out)
 
             # save solutions, use as input for another run,
-            # keeping everything else the same
+            # keeping everything else the same, this is so we can solve
+            # psi_leaf and psi_stem without the need for a numerical integrator.
+            # This approach works well for short timesteps (10-15 mins)
             for j in range(1, self.nruns):
                 out_temp = out
                 out_temp.psi_leaf[i-1] = out.psi_leaf[i]
@@ -290,6 +306,11 @@ class Desica(object):
         """
         Calculate leaf water potential, MPa
 
+        This is a simplified equation based on Xu et al., using the water
+        potentials from the previous timestep and the fact that we increase
+        the temporal resolution to get around the need to solve the dynamic eqn
+        with a numerical approach, i.e., Runge-Kutta.
+
         Parameters:
         -----------
         kstem2leaf : float
@@ -312,6 +333,9 @@ class Desica(object):
           appendix and code. Can write the dynamic equation as:
           dpsi_leaf_dt = b + a*psi_leaf
         """
+
+        # NB. the 2.0 is to account for the assumption of being halfway up the
+        # stem
         bp = (self.AL * 2.0 * kstem2leaf * psi_stem_prev - \
               self.AL * Eleaf) / self.Cl
         ap = -(self.AL * 2.0 * kstem2leaf / self.Cl)
@@ -391,6 +415,11 @@ class Desica(object):
         Calculate the flux from the stem to the leaf = change in leaf storage
         plus transpiration
 
+        This is a simplified equation based on Xu et al., using the water
+        potentials from the previous timestep and the fact that we increase
+        the temporal resolution to get around the need to solve the dynamic eqn
+        with a numerical approach, i.e., Runge-Kutta.
+
         Parameters:
         -----------
         ksoil2stem : float
@@ -412,7 +441,11 @@ class Desica(object):
         * Xu et al. (2016) New Phytol, 212: 80–95. doi:10.1111/nph.14009; see
           appendix and code
         """
-        bp = (self.AL * 2.0 * ksoil2stem * psi_soil_prev - flux_to_leaf) / self.Cs
+
+        # NB. the 2.0 is to account for the assumption of being halfway up the
+        # stem
+        bp = (self.AL * 2.0 * ksoil2stem * psi_soil_prev - \
+              flux_to_leaf) / self.Cs
         ap = -(self.AL * 2.0 * ksoil2stem / self.Cs)
         psi_stem = ((ap * psi_stem_prev + bp) * \
                     np.exp(ap * self.timestep_sec)-bp) / ap
