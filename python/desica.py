@@ -20,8 +20,9 @@ Key features:
 - Leaves are assumed to be perfectly coupled, so transpiration = Eleaf * Al,
   where Al is plant area (m2).
 - Approach follows Xu to solve the psi_leaf, psi_stem without the need for a
-  numerical integrator. This method works well at short timesteps (up to about)
-  10 to 15 mins (but some ocillations may still occur).
+  numerical integrator.  This avoids potential numerical instabilities due to
+  various dependancies on water potential. This method works well at short
+  timesteps (up to about) 10 to 15 mins. NB we may still get some ocillations.
 
 This is a python implementation of Remko's R code.
 
@@ -312,6 +313,10 @@ class Desica(object):
         potentials from the previous timestep and the fact that we increase
         the temporal resolution to get around the need to solve the dynamic eqn
         with a numerical approach, i.e., Runge-Kutta.
+
+        NB. kstem2leaf which is the stem conductance in CABLE needs to be a
+            function of sapwood, tree height.
+
 
         Parameters:
         -----------
