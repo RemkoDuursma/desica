@@ -67,13 +67,17 @@ class Desica(object):
         self.soil_volume = self.ground_area * self.soil_depth # m3
         self.met_timestep = met_timestep
         self.sf = sf # sensitivity parameter, MPa-1
-        self.g1 = g1 # sensitivity of stomatal conductance to the assimilation rate, kPa
+        self.g1 = g1 # sensitivity of stomatal conductance to the assimilation
+                     # rate, kPa
         self.Cs = Cs # stem capacitance, mmol MPa-1
         self.Cl = Cl # leaf capacitance, mmol MPa-1 (total plant)
-        self.kp_sat = kp_sat # plant saturated hydraulic conductance (mmol m-2 s-1 MPa-1)
-        self.p50 = p50 # xylem pressure inducing 50% loss of hydraulic conductivity due to embolism, MPa
+        self.kp_sat = kp_sat # plant saturated hydraulic conductance
+                             # (mmol m-2 s-1 MPa-1)
+        self.p50 = p50 # xylem pressure inducing 50% loss of hydraulic
+                       # conductivity due to embolism, MPa
         self.psi_f = psi_f # reference potential for Tuzet model, MPa
-        self.s50 = s50 # is slope of the curve at P50 used in weibull model, % MPa-1
+        self.s50 = s50 # is slope of the curve at P50 used in weibull model,
+                       # % MPa-1
         self.gmin = gmin # minimum stomatal conductance, mmol m-2 s-1
         self.psi_leaf0 = psi_leaf0 # initial leaf water potential, MPa
         self.psi_stem0 = psi_stem0 # initial stem water potential, MPa
@@ -81,7 +85,8 @@ class Desica(object):
         self.sw0 = sw0 # initial soil volumetric water content (m3 m-3)
         self.AL = AL # plant leaf area, m2
         self.lai = AL / self.ground_area # leaf area index, m2 m-2
-        self.b = b # empirical coefficient related to the clay content of the soil (Cosby et al. 1984).
+        self.b = b # empirical coefficient related to the clay content of the
+                   # soil (Cosby et al. 1984).
         self.psi_e = psi_e # air entry point water potential (MPa)
         self.Ksat = Ksat # saturated conductivity, mol m-1 s-1 MPa-1
         self.Lv = Lv # root length density, m m-3
@@ -641,12 +646,14 @@ if __name__ == "__main__":
 
     psi_stem0 = 0. # initial stem water potential, MPa
     AL = 6.        # plant leaf area, m2
-    p50 = -4.      # xylem pressure inducing 50% loss of hydraulic conductivity due to embolism, MPa
+    p50 = -4.      # xylem pressure inducing 50% loss of hydraulic conductivity
+                   # due to embolism, MPa
     psi_f = -3.    # reference potential for Tuzet model, MPa
     gmin = 10.     # minimum stomatal conductance, mmol m-2 s-1
     Cl = 10000.    # leaf capacitance, mmol MPa-1 (total plant)
     Cs = 120000.   # stem capacitance, mmol MPa-1
-    g1 = 4.0       # sensitivity of stomatal conductance to the assimilation rate, kPa
+    g1 = 4.0       # sensitivity of stomatal conductance to the assimilation
+                   # rate, kPa
 
     F = Canopy(g1=g1)
     D = Desica(psi_stem0=psi_stem0, AL=AL, p50=p50, psi_f=psi_f, gmin=gmin,
