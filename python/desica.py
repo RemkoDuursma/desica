@@ -525,7 +525,7 @@ class Desica(object):
         Returns:
         -------
         fw : float
-            sensitivity of stomata to leaf water potential
+            sensitivity of stomata to leaf water potential [0-1]
 
         Reference:
         ----------
