@@ -338,9 +338,9 @@ class Desica(object):
 
         # NB. the 2.0 is to account for the assumption of being halfway up the
         # stem
+        ap = -(self.AL * 2.0 * kstem2leaf / self.Cl)
         bp = (self.AL * 2.0 * kstem2leaf * psi_stem_prev - \
               self.AL * Eleaf) / self.Cl
-        ap = -(self.AL * 2.0 * kstem2leaf / self.Cl)
         psi_leaf = ((ap * psi_leaf_prev + bp) * \
                     np.exp(ap * self.timestep_sec) - bp) / ap
 
@@ -446,9 +446,9 @@ class Desica(object):
 
         # NB. the 2.0 is to account for the assumption of being halfway up the
         # stem
+        ap = -(self.AL * 2.0 * ksoil2stem / self.Cs)
         bp = (self.AL * 2.0 * ksoil2stem * psi_soil_prev - \
               flux_to_leaf) / self.Cs
-        ap = -(self.AL * 2.0 * ksoil2stem / self.Cs)
         psi_stem = ((ap * psi_stem_prev + bp) * \
                     np.exp(ap * self.timestep_sec)-bp) / ap
 
@@ -629,7 +629,6 @@ def plot_swp_sw(out):
     ax1.set_ylabel("Soil Water potential (MPa)")
     #ax1.legend(numpoints=1, loc="best")
     fig.savefig("sw_swp.pdf", bbox_inches='tight', pad_inches=0.1)
-
 
 
 if __name__ == "__main__":
