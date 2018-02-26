@@ -146,8 +146,8 @@ desica_calc_timestep <- function(met, i, out, pars){
   # Xu method.
   # Can write the dynamic equation as: dPsil_dt = b + a*psil
   # Then it follows (Xu et al. 2016, Appendix, and Code).
-  bp <- (pars$AL * 2 * out$kstl[i] * out$psist[i-1] - pars$AL * out$Eleaf[i])/pars$Cl
-  ap <- -(pars$AL * 2 * out$kstl[i] / pars$Cl)
+  bp <- (pars$AL * out$kstl[i] * out$psist[i-1] - pars$AL * out$Eleaf[i])/pars$Cl
+  ap <- -(pars$AL * out$kstl[i] / pars$Cl)
   out$psil[i] <- ((ap * out$psil[i-1] + bp) * exp(ap * pars$timestep_sec) - bp)/ap
 
   # Flux from stem to leaf= change in leaf storage, plus transpiration
@@ -155,8 +155,8 @@ desica_calc_timestep <- function(met, i, out, pars){
 
   # Update stem water potential
   # Also from Xu et al. 2016.
-  bp <- (pars$AL * 2 * out$krst[i] * out$psis[i-1] - out$Jsl[i]) / pars$Cs
-  ap <- -(pars$AL * 2 * out$krst[i] / pars$Cs)
+  bp <- (pars$AL * out$krst[i] * out$psis[i-1] - out$Jsl[i]) / pars$Cs
+  ap <- -(pars$AL * out$krst[i] / pars$Cs)
   out$psist[i] <- ((ap*out$psist[i-1] + bp) * exp(ap*pars$timestep_sec) - bp)/ap
 
   # flux from soil to stem = change in stem storage, plus Jrl
