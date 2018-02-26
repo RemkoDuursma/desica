@@ -115,10 +115,9 @@ class Desica(object):
             # psi_leaf and psi_stem without the need for a numerical integrator.
             # This approach works well for short timesteps (10-15 mins)
             for j in range(1, self.nruns):
-                out_temp = out
-                out_temp.psi_leaf[i-1] = out.psi_leaf[i]
-                out_temp.psi_stem[i-1] = out.psi_stem[i]
-                out = self.run_timestep(i, met, out_temp)
+                out.psi_leaf[i-1] = out.psi_leaf[i]
+                out.psi_stem[i-1] = out.psi_stem[i]
+                out = self.run_timestep(i, met, out)
 
             # Stop the simulation if we've died, i.e. reached P88
             if self.stop_dead:
