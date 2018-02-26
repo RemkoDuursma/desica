@@ -596,21 +596,18 @@ def make_plot(out, timestep=15):
     ln1 = ax1.plot(ndays, out.psi_leaf, "k-", label="Leaf")
     ln2 = ax1.plot(ndays, out.psi_stem, "r-", label="Stem")
     ln3 = ax1.plot(ndays, out.psi_soil, "b-", label="Soil")
-
     ln4 = ax2.plot(ndays, out.plc, ls='-', color="darkgrey",
                    label="PLC")
 
     # added these three lines
     lns = ln1 + ln2 + ln3 + ln4
     labs = [l.get_label() for l in lns]
-    ax1.legend(lns, labs, loc=(0.5,0.05), ncol=2)
-
+    ax1.legend(lns, labs, loc=(0.05,0.08), ncol=2)
+    #ax1.legend(numpoints=1, loc="best")
     ax2.set_ylabel(r'PLC (%)')
-
     ax1.set_xlabel("Time (days)")
     ax1.set_ylabel("Water potential (MPa)")
-    #ax1.legend(numpoints=1, loc="best")
-    fig.savefig("test_plot.pdf", bbox_inches='tight', pad_inches=0.1)
+    fig.savefig("time_to_mortality.pdf", bbox_inches='tight', pad_inches=0.1)
 
 def plot_swp_sw(out):
 
