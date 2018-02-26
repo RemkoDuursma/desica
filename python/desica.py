@@ -6,7 +6,9 @@ Desica model: simple plant hydraulics model with mortality.
 Key features:
 - plant hydraulic conductance depends on xylem water potential, defined by a
   PLC curve
-- Stomatal conductance is modelled via the modified Tuzet model.
+- Stomatal conductance is modelled via the modified Tuzet model. Use of Tuzet
+  allows parameterisations of plants with differing stomatal control over
+  psi_leaf, i.e. isohydric vs anisohydric.
 - During severe drought, root water uptake ceases (due to the decline in
   soil-to-root conductance), but water loss continues due to the minimum
   conductance (gmin). This leads to a gradual decline in the stem water pool.
