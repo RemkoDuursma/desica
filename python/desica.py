@@ -627,7 +627,7 @@ def plot_swp_sw(out):
 
     ax1.plot(out.sw, out.psi_soil, "b.", label="Soil")
 
-    ax1.set_xlabel("SW (m3 m-3)")
+    ax1.set_xlabel("Volumetric soil water content (m$^{3}$ m$^{-3}$)")
     ax1.set_ylabel("Soil Water potential (MPa)")
     #ax1.legend(numpoints=1, loc="best")
     fig.savefig("sw_swp.pdf", bbox_inches='tight', pad_inches=0.1)
