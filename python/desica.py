@@ -516,9 +516,9 @@ class Desica(object):
         An empirical logistic function to describe the sensitivity of stomata
         to leaf water potential.
 
-        Function assumes that stomata are insensitive
-        to LWP at values close to zero and that stomata rapidly close with
-        decreasing LWP.
+        Sigmoid function assumes that stomata are insensitive to psi_leaf at
+        values close to zero and that stomata rapidly close with decreasing
+        psi_leaf.
 
         Parameters:
         -----------
