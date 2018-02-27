@@ -243,6 +243,10 @@ class Desica(object):
         out.sw[i] = self.update_sw_bucket(met.precip[i], out.flux_to_stem[i],
                                           out.sw[i-1])
 
+        # for debugging / comparison
+        if self.keep_wet:
+            out.sw[i] = out.sw[i-1]
+            
         # Update soil water potential
         out.psi_soil[i] = self.calc_swp(out.sw[i])
 
