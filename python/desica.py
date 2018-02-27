@@ -6,7 +6,9 @@ Desica model: simple plant hydraulics model with mortality.
 Key features:
 - plant hydraulic conductance depends on xylem water potential, defined by a
   PLC curve
-- Stomatal conductance is modelled via the modified Tuzet model.
+- Stomatal conductance is modelled via the modified Tuzet model. Use of Tuzet
+  allows parameterisations of plants with differing stomatal control over
+  psi_leaf, i.e. isohydric vs anisohydric.
 - During severe drought, root water uptake ceases (due to the decline in
   soil-to-root conductance), but water loss continues due to the minimum
   conductance (gmin). This leads to a gradual decline in the stem water pool.
@@ -20,8 +22,9 @@ Key features:
 - Leaves are assumed to be perfectly coupled, so transpiration = Eleaf * Al,
   where Al is plant area (m2).
 - Approach follows Xu to solve the psi_leaf, psi_stem without the need for a
-  numerical integrator. This method works well at short timesteps (up to about)
-  10 to 15 mins (but some ocillations may still occur).
+  numerical integrator.  This avoids potential numerical instabilities due to
+  various dependancies on water potential. This method works well at short
+  timesteps (up to about) 10 to 15 mins. NB we may still get some ocillations.
 
 This is a python implementation of Remko's R code.
 
@@ -29,6 +32,9 @@ References:
 ----------
 * Duursma & Choat (2017). Fitplc - an R package to fit hydraulic vulnerability
   curves. Journal of Plant Hydraulics, 4, e002.
+* Tuzet et al. (2003) A coupled model of stomatal conductance,
+  photosynthesis and transpiration. Plant, Cell and Environment 26,
+  1097–1116.
 * Xu X, Medvigy D, Powers JS, Becknell JM, Guan K (2016) Diversity in plant
   hydraulic traits explains seasonal and inter-annual variations of vegetation
   dynamics in seasonally dry tropical forests. New Phytologist, 212, 80–95.
@@ -66,13 +72,17 @@ class Desica(object):
         self.soil_volume = self.ground_area * self.soil_depth # m3
         self.met_timestep = met_timestep
         self.sf = sf # sensitivity parameter, MPa-1
-        self.g1 = g1 # sensitivity of stomatal conductance to the assimilation rate, kPa
+        self.g1 = g1 # sensitivity of stomatal conductance to the assimilation
+                     # rate, kPa
         self.Cs = Cs # stem capacitance, mmol MPa-1
         self.Cl = Cl # leaf capacitance, mmol MPa-1 (total plant)
-        self.kp_sat = kp_sat # plant saturated hydraulic conductance (mmol m-2 s-1 MPa-1)
-        self.p50 = p50 # xylem pressure inducing 50% loss of hydraulic conductivity due to embolism, MPa
+        self.kp_sat = kp_sat # plant saturated hydraulic conductance
+                             # (mmol m-2 s-1 MPa-1)
+        self.p50 = p50 # xylem pressure inducing 50% loss of hydraulic
+                       # conductivity due to embolism, MPa
         self.psi_f = psi_f # reference potential for Tuzet model, MPa
-        self.s50 = s50 # is slope of the curve at P50 used in weibull model, % MPa-1
+        self.s50 = s50 # is slope of the curve at P50 used in weibull model,
+                       # % MPa-1
         self.gmin = gmin # minimum stomatal conductance, mmol m-2 s-1
         self.psi_leaf0 = psi_leaf0 # initial leaf water potential, MPa
         self.psi_stem0 = psi_stem0 # initial stem water potential, MPa
@@ -80,7 +90,8 @@ class Desica(object):
         self.sw0 = sw0 # initial soil volumetric water content (m3 m-3)
         self.AL = AL # plant leaf area, m2
         self.lai = AL / self.ground_area # leaf area index, m2 m-2
-        self.b = b # empirical coefficient related to the clay content of the soil (Cosby et al. 1984).
+        self.b = b # empirical coefficient related to the clay content of the
+                   # soil (Cosby et al. 1984).
         self.psi_e = psi_e # air entry point water potential (MPa)
         self.Ksat = Ksat # saturated conductivity, mol m-1 s-1 MPa-1
         self.Lv = Lv # root length density, m m-3
@@ -115,10 +126,9 @@ class Desica(object):
             # psi_leaf and psi_stem without the need for a numerical integrator.
             # This approach works well for short timesteps (10-15 mins)
             for j in range(1, self.nruns):
-                out_temp = out
-                out_temp.psi_leaf[i-1] = out.psi_leaf[i]
-                out_temp.psi_stem[i-1] = out.psi_stem[i]
-                out = self.run_timestep(i, met, out_temp)
+                out.psi_leaf[i-1] = out.psi_leaf[i]
+                out.psi_stem[i-1] = out.psi_stem[i]
+                out = self.run_timestep(i, met, out)
 
             # Stop the simulation if we've died, i.e. reached P88
             if self.stop_dead:
@@ -233,6 +243,10 @@ class Desica(object):
         out.sw[i] = self.update_sw_bucket(met.precip[i], out.flux_to_stem[i],
                                           out.sw[i-1])
 
+        # for debugging / comparison
+        if self.keep_wet:
+            out.sw[i] = out.sw[i-1]
+            
         # Update soil water potential
         out.psi_soil[i] = self.calc_swp(out.sw[i])
 
@@ -314,6 +328,10 @@ class Desica(object):
         the temporal resolution to get around the need to solve the dynamic eqn
         with a numerical approach, i.e., Runge-Kutta.
 
+        NB. kstem2leaf which is the stem conductance in CABLE needs to be a
+            function of sapwood, tree height.
+
+
         Parameters:
         -----------
         kstem2leaf : float
@@ -337,11 +355,8 @@ class Desica(object):
           dpsi_leaf_dt = b + a*psi_leaf
         """
 
-        # NB. the 2.0 is to account for the assumption of being halfway up the
-        # stem
-        bp = (self.AL * 2.0 * kstem2leaf * psi_stem_prev - \
-              self.AL * Eleaf) / self.Cl
-        ap = -(self.AL * 2.0 * kstem2leaf / self.Cl)
+        ap = -(self.AL * kstem2leaf / self.Cl)
+        bp = (self.AL * kstem2leaf * psi_stem_prev - self.AL * Eleaf) / self.Cl
         psi_leaf = ((ap * psi_leaf_prev + bp) * \
                     np.exp(ap * self.timestep_sec) - bp) / ap
 
@@ -445,11 +460,8 @@ class Desica(object):
           appendix and code
         """
 
-        # NB. the 2.0 is to account for the assumption of being halfway up the
-        # stem
-        bp = (self.AL * 2.0 * ksoil2stem * psi_soil_prev - \
-              flux_to_leaf) / self.Cs
-        ap = -(self.AL * 2.0 * ksoil2stem / self.Cs)
+        ap = -(self.AL * ksoil2stem / self.Cs)
+        bp = (self.AL * ksoil2stem * psi_soil_prev - flux_to_leaf) / self.Cs
         psi_stem = ((ap * psi_stem_prev + bp) * \
                     np.exp(ap * self.timestep_sec)-bp) / ap
 
@@ -504,9 +516,9 @@ class Desica(object):
         An empirical logistic function to describe the sensitivity of stomata
         to leaf water potential.
 
-        Function assumes that stomata are insensitive
-        to LWP at values close to zero and that stomata rapidly close with
-        decreasing LWP.
+        Sigmoid function assumes that stomata are insensitive to psi_leaf at
+        values close to zero and that stomata rapidly close with decreasing
+        psi_leaf.
 
         Parameters:
         -----------
@@ -516,7 +528,7 @@ class Desica(object):
         Returns:
         -------
         fw : float
-            sensitivity of stomata to leaf water potential
+            sensitivity of stomata to leaf water potential [0-1]
 
         Reference:
         ----------
@@ -592,21 +604,18 @@ def make_plot(out, timestep=15):
     ln1 = ax1.plot(ndays, out.psi_leaf, "k-", label="Leaf")
     ln2 = ax1.plot(ndays, out.psi_stem, "r-", label="Stem")
     ln3 = ax1.plot(ndays, out.psi_soil, "b-", label="Soil")
-
     ln4 = ax2.plot(ndays, out.plc, ls='-', color="darkgrey",
                    label="PLC")
 
     # added these three lines
     lns = ln1 + ln2 + ln3 + ln4
     labs = [l.get_label() for l in lns]
-    ax1.legend(lns, labs, loc=(0.5,0.05), ncol=2)
-
+    ax1.legend(lns, labs, loc=(0.05,0.08), ncol=2)
+    #ax1.legend(numpoints=1, loc="best")
     ax2.set_ylabel(r'PLC (%)')
-
     ax1.set_xlabel("Time (days)")
     ax1.set_ylabel("Water potential (MPa)")
-    #ax1.legend(numpoints=1, loc="best")
-    fig.savefig("test_plot.pdf", bbox_inches='tight', pad_inches=0.1)
+    fig.savefig("time_to_mortality.pdf", bbox_inches='tight', pad_inches=0.1)
 
 def plot_swp_sw(out):
 
@@ -626,11 +635,10 @@ def plot_swp_sw(out):
 
     ax1.plot(out.sw, out.psi_soil, "b.", label="Soil")
 
-    ax1.set_xlabel("SW (m3 m-3)")
+    ax1.set_xlabel("Volumetric soil water content (m$^{3}$ m$^{-3}$)")
     ax1.set_ylabel("Soil Water potential (MPa)")
     #ax1.legend(numpoints=1, loc="best")
     fig.savefig("sw_swp.pdf", bbox_inches='tight', pad_inches=0.1)
-
 
 
 if __name__ == "__main__":
@@ -641,12 +649,14 @@ if __name__ == "__main__":
 
     psi_stem0 = 0. # initial stem water potential, MPa
     AL = 6.        # plant leaf area, m2
-    p50 = -4.      # xylem pressure inducing 50% loss of hydraulic conductivity due to embolism, MPa
+    p50 = -4.      # xylem pressure inducing 50% loss of hydraulic conductivity
+                   # due to embolism, MPa
     psi_f = -3.    # reference potential for Tuzet model, MPa
     gmin = 10.     # minimum stomatal conductance, mmol m-2 s-1
     Cl = 10000.    # leaf capacitance, mmol MPa-1 (total plant)
     Cs = 120000.   # stem capacitance, mmol MPa-1
-    g1 = 4.0       # sensitivity of stomatal conductance to the assimilation rate, kPa
+    g1 = 4.0       # sensitivity of stomatal conductance to the assimilation
+                   # rate, kPa
 
     F = Canopy(g1=g1)
     D = Desica(psi_stem0=psi_stem0, AL=AL, p50=p50, psi_f=psi_f, gmin=gmin,
