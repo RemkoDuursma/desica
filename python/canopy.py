@@ -1,14 +1,58 @@
+#!/usr/bin/env python
+
+"""
+Canopy wrapper to calculate photosynthesis and stomatal conductance.
+
+That's all folks.
+"""
+__author__ = "Martin De Kauwe"
+__version__ = "1.0 (19.02.2018)"
+__email__ = "mdekauwe@gmail.com"
+
 import sys
 import numpy as np
 import os
 import math
 
 class Canopy(object):
+    """ Wrapper class to my farquhar model class as we only want to get gsw
+    back
 
+    Parameters
+    ----------
+    g0 : float
+        residual stomatal conductance as net assimilation rate reaches
+        zero (mol m-2 s-1)
+    gamma : float
+        is the CO2 compensation point of photosynthesis (umol m-2 s-1)
+    g1 : float
+        and the slope of the sensitivity of stomatal conductance to
+        assimilation (kpa^0.5)
+    theta_J : float
+        Curvature of the light response
+    Rd25 : float
+        Estimate of respiration rate at the reference temperature 25 deg C
+         or 298 K [deg K]
+    Q10 : float
+        ratio of respiration at a given temperature divided by respiration
+        at a temperature 10 degrees lower
+    Vcmax25 : float
+        max rate of rubisco activity at 25 deg or 298 K
+    Jmax25 : float
+        potential rate of electron transport at 25 deg or 298 K
+    Eaj : float
+        activation energy for the parameter [J mol-1]
+    Eav : float
+        activation energy for the parameter [J mol-1]
+    deltaSj : float
+        entropy factor [J mol-1 K-1)
+    deltaSv : float
+        entropy factor [J mol-1 K-1)
+    """
     def __init__(self, g0=0.001, gamma=0.0, g1=4.0, theta_J=0.85, Rd25=0.92,
                  Q10=1.92, Vcmax25=50, Jmax25=100., Eav=82620.87,
                  deltaSv=645.1013, Eaj=39676.89, deltaSj=641.3615):
-    
+
         self.deg2kelvin = 273.15
         self.F = FarquharC3(peaked_Jmax=True, peaked_Vcmax=False,
                             model_Q10=True, gs_model="user_defined",
@@ -24,7 +68,26 @@ class Canopy(object):
         self.deltaSj = deltaSj
 
     def canopy(self, Cs, tair, par, vpd, mult):
+        """ Call Farquhar model
 
+        Parameters
+        ----------
+        Cs : float
+            leaf surface CO2 concentration [umol mol-1]
+        tair : float
+            air temp [deg K]
+        par : float
+            photosynthetically active radiation [umol m-2 s-1].
+        vpd : float
+            Vapour pressure deficit [kPa]
+        mult : float
+            multiplier to define gs / A
+
+        Returns
+        -------
+        gsw : float
+            stomatal conductance to water vapour [mol H2O m-2 s-1]
+        """
         tleaf_K = tair + self.deg2kelvin
 
         (An, gsc, gsw) = self.F.calc_photosynthesis(Cs=Cs, Tleaf=tleaf_K,
@@ -132,7 +195,7 @@ class FarquharC3(object):
             zero (mol m-2 s-1)
         g1 : float
             and the slope of the sensitivity of stomatal conductance to
-            assimilation (mol m-2 s-1)
+            assimilation (kpa^0.5)
         D0 : float
             the sensitivity of stomatal conductance to D (kPa)
         """
@@ -209,17 +272,18 @@ class FarquharC3(object):
             Estimate of respiration rate at the reference temperature 25 deg C
              or 298 K [deg K]
         Par : float
-            PAR [umol m-2 time unit-1]. Default is not to supply PAR, with
-            measurements taken under light saturation.
+            photosynthetically active radiation [umol m-2 time unit-1]. Default
+            is not to supply PAR, with measurements taken under light
+            saturation.
 
         Returns:
         --------
         An : float
             Net leaf assimilation rate [umol m-2 s-1]
-        Acn : float
-            Net rubisco-limited leaf assimilation rate [umol m-2 s-1]
-        Ajn : float
-            Net RuBP-regeneration-limited leaf assimilation rate [umol m-2 s-1]
+        gsc : float
+            stomatal conductance to CO2 [mol m-2 s-1]
+        gsw : float
+            stomatal conductance to water vapour [mol H2O m-2 s-1]
         """
         self.check_supplied_args(Jmax, Vcmax, Rd, Jmax25, Vcmax25, Rd25)
 
