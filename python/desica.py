@@ -351,10 +351,8 @@ class Desica(object):
           dpsi_leaf_dt = b + a*psi_leaf
         """
 
-        # NB. the 2.0 is to account for the assumption of being halfway up the
-        # stem
-        ap = -(self.AL * 2.0 * kstem2leaf / self.Cl)
-        bp = (self.AL * 2.0 * kstem2leaf * psi_stem_prev - \
+        ap = -(self.AL * kstem2leaf / self.Cl)
+        bp = (self.AL * kstem2leaf * psi_stem_prev - \
               self.AL * Eleaf) / self.Cl
         psi_leaf = ((ap * psi_leaf_prev + bp) * \
                     np.exp(ap * self.timestep_sec) - bp) / ap
@@ -459,10 +457,8 @@ class Desica(object):
           appendix and code
         """
 
-        # NB. the 2.0 is to account for the assumption of being halfway up the
-        # stem
-        ap = -(self.AL * 2.0 * ksoil2stem / self.Cs)
-        bp = (self.AL * 2.0 * ksoil2stem * psi_soil_prev - \
+        ap = -(self.AL * ksoil2stem / self.Cs)
+        bp = (self.AL * ksoil2stem * psi_soil_prev - \
               flux_to_leaf) / self.Cs
         psi_stem = ((ap * psi_stem_prev + bp) * \
                     np.exp(ap * self.timestep_sec)-bp) / ap
