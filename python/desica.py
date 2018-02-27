@@ -352,8 +352,7 @@ class Desica(object):
         """
 
         ap = -(self.AL * kstem2leaf / self.Cl)
-        bp = (self.AL * kstem2leaf * psi_stem_prev - \
-              self.AL * Eleaf) / self.Cl
+        bp = (self.AL * kstem2leaf * psi_stem_prev - self.AL * Eleaf) / self.Cl
         psi_leaf = ((ap * psi_leaf_prev + bp) * \
                     np.exp(ap * self.timestep_sec) - bp) / ap
 
@@ -458,8 +457,7 @@ class Desica(object):
         """
 
         ap = -(self.AL * ksoil2stem / self.Cs)
-        bp = (self.AL * ksoil2stem * psi_soil_prev - \
-              flux_to_leaf) / self.Cs
+        bp = (self.AL * ksoil2stem * psi_soil_prev - flux_to_leaf) / self.Cs
         psi_stem = ((ap * psi_stem_prev + bp) * \
                     np.exp(ap * self.timestep_sec)-bp) / ap
 
